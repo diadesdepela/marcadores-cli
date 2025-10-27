@@ -4,4 +4,5 @@
 #               other values related globally to the project
 #
 
-FS_URL="www.flashscore.com"
+FS_URL="https://www.flashscore.com"
+ID_MAIN_SPORTS="menuTop__text"

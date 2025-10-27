@@ -2,13 +2,16 @@
 name = "marcadores-cli"
 version = "0.0.1"
 description = ""
-authors = [""]
+authors = ["diadesdepela@gmail.com"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.12"
 click = "^8.1.6"
 rich = "^13.7.1"
+requests = "^2.32.5"
+requests-html = "^0.10.0"
+beautifulsoup4 = {url = "https://www.crummy.com/software/BeautifulSoup/bs4/download/4.14/beautifulsoup4-4.14.2.tar.gz"}
 
 
 [build-system]
