@@ -7,7 +7,7 @@
 import requests
 from bs4 import BeautifulSoup
 
-from config import FS_URL, ID_MAIN_SPORTS
+from config import FS_URL, ID_MAIN_SPORTS, ID_MAIN_COUNTRIES
 
 def get_sports_list() -> list[str]:
     """
@@ -32,6 +32,27 @@ def get_sports_list() -> list[str]:
 
     return sports
 
+def get_league_countries(sport: str) -> list[str]:
+    """
+    Get function to see available countries and leagues within an sport
+    """
+    countries = []
+
+    # Obtain page & soup
+    sport_url = FS_URL + "/" + sport
+    #!TODO: Check whether the sport is correct or not. Investigate how
+    #       handle errors and expections
+    sport_page = requests.get(sport_url)
+    soup = BeautifulSoup(sport_page.content, "html.parser")
+
+    # Obtain first div element of HTML
+    countries_tag = soup.find_all(class_=ID_MAIN_COUNTRIES)
+
+    # Go through the div adding the different countries and leagues
+    for c in countries_tag[0].find_all(True):
+        countries.append(c.get_text(strip=True))
+
+    return countries
 
 
 
