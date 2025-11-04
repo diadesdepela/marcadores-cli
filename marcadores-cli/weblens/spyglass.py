@@ -55,4 +55,31 @@ def get_league_countries(sport: str) -> list[str]:
     return countries
 
 
+def get_reg_leagues(sport: str, country: str) -> list[str]:
+    """
+    Get function to see available regional leagues within a country
+    """
+    reg_leagues = []
+
+    # Obtain page & soup
+    sport_country_url = config.FS_URL + "/" + sport + "/" + country
+
+    #!TODO: Same... before arguments shall be checked, and they
+    #       might shall not pass!
+    sport_coutry_page = requests.get(sport_country_url)
+    soup = BeautifulSoup(sport_coutry_page.content, "html.parser")
+
+    reg_leagues_tag = soup.find_all(class_=config.ID_MAIN_REG_LEAGUES)
+
+    # Go through the tag checking the different reg_leagues
+    for rl in reg_leagues_tag:
+        reg_leagues.append(rl.get_text(strip=True))
+
+    #!TODO: This is returned as the string without any kind of treatment
+    #       If this array is used, each string will be needed to be
+    #       reshaped
+    #
+    #       i.e: 'Primera RFEF - Group 2' --> 'primera-rfef-group-2'
+    #
+    return reg_leagues
 
