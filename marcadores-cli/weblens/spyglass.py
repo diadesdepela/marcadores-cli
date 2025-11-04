@@ -7,7 +7,7 @@
 import requests
 from bs4 import BeautifulSoup
 
-from config import FS_URL, ID_MAIN_SPORTS, ID_MAIN_COUNTRIES
+import config
 
 def get_sports_list() -> list[str]:
     """
@@ -17,11 +17,11 @@ def get_sports_list() -> list[str]:
     sports = []
 
     # Obtain page & soup
-    main_page = requests.get(FS_URL)
+    main_page = requests.get(config.FS_URL)
     soup = BeautifulSoup(main_page.content, "html.parser")
 
     # Obtain all the main sports via the class identifier
-    main_sports_tag = soup.find_all(class_=ID_MAIN_SPORTS)
+    main_sports_tag = soup.find_all(class_=config.ID_MAIN_SPORTS)
 
     # Fill our list
     for tag in main_sports_tag:
@@ -39,14 +39,14 @@ def get_league_countries(sport: str) -> list[str]:
     countries = []
 
     # Obtain page & soup
-    sport_url = FS_URL + "/" + sport
+    sport_url = config.FS_URL + "/" + sport
     #!TODO: Check whether the sport is correct or not. Investigate how
     #       handle errors and expections
     sport_page = requests.get(sport_url)
     soup = BeautifulSoup(sport_page.content, "html.parser")
 
     # Obtain first div element of HTML
-    countries_tag = soup.find_all(class_=ID_MAIN_COUNTRIES)
+    countries_tag = soup.find_all(class_=config.ID_MAIN_COUNTRIES)
 
     # Go through the div adding the different countries and leagues
     for c in countries_tag[0].find_all(True):
