@@ -12,6 +12,7 @@ rich = "^13.7.1"
 requests = "^2.32.5"
 requests-html = "^0.10.0"
 beautifulsoup4 = {url = "https://www.crummy.com/software/BeautifulSoup/bs4/download/4.14/beautifulsoup4-4.14.2.tar.gz"}
+selenium = "^4.38.0"
 
 
 [build-system]

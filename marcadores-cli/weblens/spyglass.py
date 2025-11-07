@@ -5,6 +5,8 @@
 #
 
 import requests
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup
 
 import config
@@ -32,6 +34,10 @@ def get_sports_list() -> list[str]:
 
     return sports
 
+
+#!TODO: Bug detected in this functionality, does not work correctly
+#       ID from the find_all must be changed. Might be
+#       lmc__elementName or smth like that (?)
 def get_league_countries(sport: str) -> list[str]:
     """
     Get function to see available countries and leagues within an sport
@@ -82,4 +88,78 @@ def get_reg_leagues(sport: str, country: str) -> list[str]:
     #       i.e: 'Primera RFEF - Group 2' --> 'primera-rfef-group-2'
     #
     return reg_leagues
+
+
+def get_results(sport: str, country: str, league: str, round: int = 0):
+    """
+    Get function to obtain the results of all the games in a
+    specific round.
+    """
+    games = [ ]
+
+    # Configure Chrome
+    options = Options()
+    options.add_argument("--headless=new")        # No window popping-up
+
+    # We run Chrome
+    driver = webdriver.Chrome(options=options)
+
+    # URL
+    results_url = f"{config.FS_URL}/{sport}/{country}/{league}/results/"
+
+    driver.get(results_url)
+    html = driver.page_source
+    soup = BeautifulSoup(html, "html.parser")
+    # !TODO: Investigate a method / functionality to know if the JS
+    #        has been loaded completely
+
+    # Find all the games
+    round_tag = soup.find_all(class_=config.ID_ROUND)
+    # !TODO: Correct if list index "round" is out of range and invert it
+    # so it fits
+
+    # ------------------------------------------------------------------
+    # Take the first match...
+    #
+    #   If we navigate the HTML tree, the "event__round" div, is at the
+    #   same level as the rest of the games ("event__match" div), then
+    #   they are siblings.
+    #
+    #   We are going to navigate the tree until we find another round.
+    #   Here there is a little schema about it:
+    #
+    #         > HTML TREE <
+    #
+    #   <div class="event__round">       // Here starts 1 round
+    #   <div class="event__match">       // Below... all the games
+    #               ·
+    #               ·
+    #               ·
+    #   <div class="event__match">
+    #   <div class="event__round">      // Here starts another round
+    #                                   // We stop!
+    #
+    # ------------------------------------------------------------------
+    cmatch = round_tag[round].find_next_sibling()
+
+    while(cmatch.get("class")[0] == config.ID_MATCHROW):
+        # We get local team and score
+        local_team = cmatch.find(class_=config.ID_LOCALTEAM).get_text()
+        local_score = cmatch.find(class_=config.ID_LOCALSCORE).get_text()
+
+        local_data = {"team": local_team, "score": local_score}
+
+        # We get away team and score
+        away_team = cmatch.find(class_=config.ID_AWAYTEAM).get_text()
+        away_score = cmatch.find(class_=config.ID_AWAYSCORE).get_text()
+
+        away_data = {"team": away_team, "score": away_score}
+
+        # Join up data in a single tuple
+        game_data = (local_data, away_data)
+
+        games.append(game_data)
+        cmatch = cmatch.find_next_sibling()
+
+    return games
 
