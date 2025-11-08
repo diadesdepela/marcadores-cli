@@ -5,11 +5,18 @@
 #
 
 import requests
+
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
+from selenium.common.exceptions import TimeoutException
+
 from bs4 import BeautifulSoup
 
 import config
+import time
 
 def get_sports_list() -> list[str]:
     """
@@ -163,3 +170,58 @@ def get_results(sport: str, country: str, league: str, round: int = 0):
 
     return games
 
+
+def get_standings(sport: str, country: str, league: str):
+    """
+    Get function to obtain the current standings table for a league.
+    """
+    standings = []
+
+    options = Options()
+    options.add_argument("--headless=new")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-gpu")
+
+    driver = webdriver.Chrome(options=options)
+
+    standings_url = f"{config.FS_URL}/{sport}/{country}/{league}/standings/"
+    driver.get(standings_url)
+
+    # Wait until our selected table js's is loaded
+    try:
+        WebDriverWait(driver, 15).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR,
+                                            "#tournament-table"))
+        )
+    except TimeoutException:
+        driver.quit()
+        return standings
+
+    # Wait some extraseconds
+    time.sleep(2)
+
+    # We extract the rederized HTML
+    soup = BeautifulSoup(driver.page_source, "html.parser")
+    driver.quit()
+
+    table = soup.find("div", id=config.ID_TABLE)
+    rows = table.find_all("div", class_=config.CLASS_ROWSTANDING)
+
+    # We go row by row extracting: name, rank and points
+    for row in rows:
+        name_tag = row.find(class_=config.CLASS_NAMEROW)
+
+        if not name_tag:
+            continue
+
+        name = name_tag.get_text(strip=True)
+        rank = row.find("div", class_=config.CLASS_RANKROW).get_text()
+        points = row.find(class_=config.CLASS_POINTSROW).get_text()
+
+        standings.append({
+            "rank": rank,
+            "team": name,
+            "points": points,
+        })
+
+    return standings
