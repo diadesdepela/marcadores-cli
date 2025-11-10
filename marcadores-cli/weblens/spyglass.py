@@ -17,6 +17,7 @@ from bs4 import BeautifulSoup
 
 import config
 import time
+import re
 
 def get_sports_list() -> list[str]:
     """
@@ -225,3 +226,56 @@ def get_standings(sport: str, country: str, league: str):
         })
 
     return standings
+
+
+def get_team_id(sport: str, country: str, league: str, team: str) -> str:
+    """
+    Get function to obtain a certain team's ID
+    """
+
+    options = Options()
+    options.add_argument("--headless=new")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-gpu")
+
+    driver = webdriver.Chrome(options=options)
+
+    standings_url = f"{config.FS_URL}/{sport}/{country}/{league}/standings/"
+    driver.get(standings_url)
+
+    # Wait until our selected table js's is loaded
+    try:
+        WebDriverWait(driver, 15).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR,
+                                            "#tournament-table"))
+        )
+    except TimeoutException:
+        driver.quit()
+        return
+
+    # Wait some extraseconds
+    time.sleep(2)
+
+    # We extract the rederized HTML
+    soup = BeautifulSoup(driver.page_source, "html.parser")
+    driver.quit()
+
+    table = soup.find("div", id=config.ID_TABLE)
+    rows = table.find_all("div", class_=config.CLASS_ROWSTANDING)
+
+    # We go row by row checking if the team is found
+    for row in rows:
+        url_tag = row.find(class_=config.CLASS_NAMEROW)
+
+        splitted_team_href = re.split("/", url_tag.get("href"))
+
+        # splitted_team_href example:
+        #
+        #  0   1       2                         3
+        # ['', 'team', 'minnesota-timberwolves', 'KjBIVQcI', '']
+        #
+
+        if splitted_team_href[2] == team:
+            return splitted_team_href[3]
+
+    #!TODO: Add a corner case if team is not found
