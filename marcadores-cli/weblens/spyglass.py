@@ -279,3 +279,66 @@ def get_team_id(sport: str, country: str, league: str, team: str) -> str:
             return splitted_team_href[3]
 
     #!TODO: Add a corner case if team is not found
+
+
+def get_team_next_games(sport: str, country: str, league: str, team: str):
+    next_games = [ ]
+
+    # We need the id...
+    team_id = get_team_id(sport, country, league, team)
+    # To create the url
+    team_url = f"{config.FS_URL}/team/{team}/{team_id}"
+
+    options = Options()
+    options.add_argument("--headless=new")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-gpu")
+
+    driver = webdriver.Chrome(options=options)
+    driver.get(team_url)
+
+    # Wait until our selected table js's is loaded
+    try:
+        WebDriverWait(driver, 15).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR,
+                                            f".{config.CLASS_SCHEDULED}"))
+        )
+    except TimeoutException:
+        driver.quit()
+        return
+
+    # Wait some extraseconds
+    time.sleep(2)
+
+    # We extract the rederized HTML
+    soup = BeautifulSoup(driver.page_source, "html.parser")
+    driver.quit()
+
+    section_tags = soup.find_all(class_=config.ID_SECTION)
+
+    # If we find the 'Scheduled' section...
+    for i, x in enumerate(section_tags):
+        if x.get_text() == config.SECTION_SCHEDULED:
+            scheduled_tag = section_tags[i]
+
+    if scheduled_tag == None:
+        print("No scheduled matches found")
+        return
+
+    scheduled_matches = scheduled_tag.next_sibling.find_all(
+                                            class_=config.CLASS_SCHEDULED)
+
+    # ... we iterate through it, getting the time and teams
+    for scheduled_match in scheduled_matches:
+        match_time = scheduled_match.find(
+            class_=config.CLASS_TIME).get_text()
+
+        local_team = scheduled_match.find(
+            class_=config.CLASS_HOME_TEAM_SCHEDULED).get_text()
+
+        away_team = scheduled_match.find(
+            class_=config.CLASS_AWAY_TEAM_SCHEDULED).get_text()
+
+        next_games.append((match_time, (local_team, away_team)))
+
+    return next_games
