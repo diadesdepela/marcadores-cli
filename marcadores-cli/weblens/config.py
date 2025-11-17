@@ -29,3 +29,6 @@ CLASS_SCHEDULED="event__match--scheduled"
 CLASS_TIME="event__time"
 CLASS_AWAY_TEAM_SCHEDULED="event__participant--away"
 CLASS_HOME_TEAM_SCHEDULED="event__participant--home"
+
+CLASS_LEAGUE_TAG="event--leagues"
+CLASS_HEADER_LEAGUE="headerLeague__title-text"

@@ -281,6 +281,8 @@ def get_team_id(sport: str, country: str, league: str, team: str) -> str:
     #!TODO: Add a corner case if team is not found
 
 
+# !TODO: Change how this internally works and use the "fixtures" subpage
+# !TODO: Add documentation
 def get_team_next_games(sport: str, country: str, league: str, team: str):
     next_games = [ ]
 
@@ -342,3 +344,101 @@ def get_team_next_games(sport: str, country: str, league: str, team: str):
         next_games.append((match_time, (local_team, away_team)))
 
     return next_games
+
+def get_team_prev_games(sport: str, country: str, league: str, team: str):
+    """
+    Get functionality to obtain all the previous games of a certain
+    team.
+    """
+    prev_games = []
+
+    # We need the id...
+    team_id = get_team_id(sport, country, league, team)
+    # To create the url
+    team_url = f"{config.FS_URL}/team/{team}/{team_id}"
+    results_url = f"{team_url}/results"
+
+    options = Options()
+    options.add_argument("--headless=new")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-gpu")
+
+    driver = webdriver.Chrome(options=options)
+    driver.get(results_url)
+
+    # Wait until our selected table js's is loaded
+    try:
+        WebDriverWait(driver, 15).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR,
+                                            f".{config.CLASS_LEAGUE_TAG}"))
+        )
+    except TimeoutException:
+        driver.quit()
+        return
+
+    # Wait some extraseconds
+    time.sleep(2)
+
+    # We extract the rederized HTML
+    soup = BeautifulSoup(driver.page_source, "html.parser")
+    driver.quit()
+
+    # print(soup)
+
+    # This is the overall section
+    league_event_section = soup.find(class_=config.CLASS_LEAGUE_TAG)
+
+    # There are league divs...
+    class_id_league = "headerLeague__wrapper"
+    # ... and event divs
+    class_id_event  = "event__match"
+    iterator_league = -1
+
+    # For each div...
+    for row in league_event_section.children:
+        class_row = row.get("class")
+
+        # We select if it's either league...
+        if class_id_league in class_row:
+            iterator_league = iterator_league + 1
+            league = row.find(class_=config.CLASS_HEADER_LEAGUE).get_text()
+            prev_games.append((league, []))
+
+        # Or event!
+        elif class_id_event in class_row:
+            home_team = row.find(class_=config.CLASS_HOME_TEAM_SCHEDULED).get_text()
+            home_score = row.find(class_=config.ID_LOCALSCORE).get_text()
+            away_team = row.find(class_=config.CLASS_AWAY_TEAM_SCHEDULED).get_text()
+            away_score = row.find(class_=config.ID_AWAYSCORE).get_text()
+            date = row.find(class_=config.CLASS_TIME).get_text()
+
+            event = (date, ((home_team, home_score),(away_team, away_score)))
+
+            prev_games[iterator_league][1].append(event)
+
+    ###########---prev_games data-structure---##########################
+    #
+    # The structure of the divs are more or less like this:
+    #
+    #   [league]
+    #       |-----[event]~ (date, ((home_team, home_score), [event],...
+    #       |                     (away_team, away_score)))
+    #       ·
+    #       ·
+    #   [league]
+    #       |-----[event]~ (date, ((home_team, home_score), [event],...
+    #       |                     (away_team, away_score)))
+    #
+    #-------------------------------------------------------------------
+    #
+    # For example: Here you can iterate through the whole data structure
+    # for league, events in prev_games:
+    #     print(f"league: {league}")
+    #
+    #     for event in events:
+    #         print(f"date: {event[0]}")
+    #         print(f"home_team:{event[1][0][0]} home_score:{event[1][0][1]}")
+    #         print(f"away_team:{event[1][1][0]} away_score:{event[1][1][1]}")
+    #
+
+    return prev_games
