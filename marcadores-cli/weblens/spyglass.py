@@ -15,7 +15,8 @@ from selenium.common.exceptions import TimeoutException
 
 from bs4 import BeautifulSoup
 
-import config
+from . import config
+
 import time
 import re
 
