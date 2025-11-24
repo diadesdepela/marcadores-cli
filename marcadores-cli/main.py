@@ -16,54 +16,63 @@ def marcadorescli():
     pass
 
 
-@click.command()
-def manual() -> None:
-    """Personalized help"""
-
-    # Creates the table with: Commands | Description columns
-    manual_table = Table(title="Usage of Marcadores CLI")
-    manual_table.add_column("[bold]Command[/bold]", justify="center")
-    manual_table.add_column("[bold]Description[/bold]", justify="center")
-
-    # Start adding rows to the table
-    manual_table.add_row("[bold]manual[/bold]", 
-                         "Shows a personalized [bold]rich[/bold]er help",)
-    manual_table.add_section()
-    manual_table.add_row("[bold]list-of-sports[/bold]",
-                         "Lists the available sports for the CLI")
-
-    # Print the table
-    console.print(
-        Panel(
-            manual_table,
-            title="> HELP <",
-            border_style="blue",
-        )
-    )
-
-
-
-# TODO: This will be done dinamically through the webpage, this is
-#       only a WIP to try out commands
 @click.command("list-of-sports")
 def list_of_sports() -> None:
     """
     List of sports available to show.
-    This a WIP, it will be dynamically listed.
     """
+    sport_list = spyglass.get_sports_list()
+
+    list_msg = f"List of sports\n"
+
+    for sport in sport_list:
+        list_msg = list_msg + f"   {sport}\n"
+
     console.print(
-        Panel(
-            "[bold]Available sports:[/bold]\n\t- Football\n\t- Tennis " \
-            "\n\t- Basketball",
-            title="Sports List",
-            border_style="blue",
-        )
+            f"{list_msg}"
     )
 
+    return None
 
-marcadorescli.add_command(manual)
+
+@click.command("get-leagues-countries")
+@click.argument("sport", required=True, nargs=1)
+@click.option("-l", "--letter", help="Pass a single character to filter out " \
+                                     "the leagues shown based on the initial" \
+                                     "letter", show_default=True)
+def get_leagues_countries(sport: str, letter: str | None = None) -> None:
+    """
+    Lists the available countries or international leagues for an
+    arbitrary number of sports
+    """
+
+    # We check if the option is a single character string
+    if letter is not None and len(letter) > 1:
+        print("Argumental error: The letter filter must be "
+              "single character\r\n")
+        click.help_option()
+
+    # We obtain the list and start building the message
+    league_list = spyglass.get_league_countries(sport)
+    league_msg = f"Available leagues & countries for {sport}\n"
+
+    if letter is not None:
+        for league in league_list:
+            if letter.lower() == league[0].lower():
+                    league_msg = league_msg + f"   {league}\n"
+    else:
+        for league in league_list:
+            league_msg = league_msg + f"   {league}\n"
+
+    console.print(
+        f"{league_msg}"
+    )
+
+    return None
+
+
 marcadorescli.add_command(list_of_sports)
-
+marcadorescli.add_command(get_leagues_countries)
 
 if __name__ == "__main__":
     marcadorescli()
