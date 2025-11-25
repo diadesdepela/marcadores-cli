@@ -92,9 +92,61 @@ def get_reg_league(sport: str, country: str) -> None:
     return None
 
 
+# !TODO: Add option -S / -s to --save the the configuration
+#        Some steps into creating a saving marcadores.config
+@click.command("get_results")
+@click.argument("sport", required=True, nargs=1)
+@click.argument("country", required=True, nargs=1)
+@click.argument("league", required=True, nargs=1)
+@click.option("-r", "--round", required=False, nargs=1, type=click.INT,
+              show_default=True)
+def get_results(sport: str, country: str, league: str,
+                   round: int = 0) -> None:
+    """
+    Lists the table of results of an specific round in a league of a
+    country and sport
+    """
+
+    if round is None:
+        round = 0
+
+    # We obtain the result list
+    results = spyglass.get_results(sport, country, league, round)
+
+    # !TODO: Normalize the round number to the actual one. Probably
+    #        a "get_last_round_number" function or similar has to be
+    #        made
+    reg_league_msg = f"Results of round {round} in {league}:\n"
+
+    # [0] -> Always local/home
+    # [1] -> Always away
+    local_result = 0
+    away_result = 1
+
+    # !TODO: Some stylizing could be done using rich, at least to make 
+    # all the scores in a "straight line"
+    for result in results:
+        local_team = f"{result[local_result]["team"]}"
+        local_score = f"{result[local_result]["score"]}"
+        local_msg = f"\t{local_team}: {local_score}"
+
+        away_team = f"{result[away_result]["team"]}"
+        away_score = f"{result[away_result]["score"]}"
+        away_msg = f" - {away_score} :{away_team}\n"
+
+        reg_league_msg = reg_league_msg + local_msg + away_msg
+
+    console.print(
+        f"{reg_league_msg}"
+    )
+
+    return None
+
+
 marcadorescli.add_command(list_of_sports)
 marcadorescli.add_command(get_leagues_countries)
 marcadorescli.add_command(get_reg_league)
+marcadorescli.add_command(get_results)
 
 if __name__ == "__main__":
     marcadorescli()
