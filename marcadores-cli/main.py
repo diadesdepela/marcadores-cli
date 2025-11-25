@@ -42,8 +42,7 @@ def list_of_sports() -> None:
                                      "letter", show_default=True)
 def get_leagues_countries(sport: str, letter: str | None = None) -> None:
     """
-    Lists the available countries or international leagues for an
-    arbitrary number of sports
+    Lists the available countries or international leagues for a sport
     """
 
     # We check if the option is a single character string
