@@ -143,10 +143,41 @@ def get_results(sport: str, country: str, league: str,
     return None
 
 
+@click.command("get_standings")
+@click.argument("sport", required=True)
+@click.argument("country", required=True)
+@click.argument("league", required=True)
+def get_standings(sport: str, country: str, league: str)-> None:
+    """
+    Prints the current standings table for a league.
+    """
+
+    standings = spyglass.get_standings(sport, country, league)
+
+    standings_msg = f"Standings for {league}\n"
+
+    for rank in standings:
+        position = rank["rank"]
+        team = rank["team"]
+        points = rank["points"]
+
+        standings_msg = standings_msg + f"\t{position} {team} - {points}\n"
+
+    console.print(
+        f"{standings_msg}"
+    )
+
+    return None
+
+
+#//////////////////////////////////////////////////////////////////////#
+#//////////////////////////////////////////////////////////////////////#
+
 marcadorescli.add_command(list_of_sports)
 marcadorescli.add_command(get_leagues_countries)
 marcadorescli.add_command(get_reg_league)
 marcadorescli.add_command(get_results)
+marcadorescli.add_command(get_standings)
 
 if __name__ == "__main__":
     marcadorescli()
