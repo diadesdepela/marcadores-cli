@@ -70,8 +70,31 @@ def get_leagues_countries(sport: str, letter: str | None = None) -> None:
     return None
 
 
+@click.command("get_reg_league")
+@click.argument("sport", required=True, nargs=1)
+@click.argument("country", required=True, nargs=1)
+def get_reg_league(sport: str, country: str) -> None:
+    """
+    Lists the available regional leagues for a country's sport
+    """
+
+    # We obtain the list and start building the message
+    reg_league_list = spyglass.get_reg_leagues(sport, country)
+    reg_league_msg = f"Available regional {sport} leagues located in {country}\n"
+
+    for reg_league in reg_league_list:
+        reg_league_msg = reg_league_msg + f"\t{reg_league}\n"
+
+    console.print(
+        f"{reg_league_msg}"
+    )
+
+    return None
+
+
 marcadorescli.add_command(list_of_sports)
 marcadorescli.add_command(get_leagues_countries)
+marcadorescli.add_command(get_reg_league)
 
 if __name__ == "__main__":
     marcadorescli()
