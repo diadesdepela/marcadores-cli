@@ -169,6 +169,58 @@ def get_standings(sport: str, country: str, league: str)-> None:
 
     return None
 
+@click.command("get_team_games")
+@click.argument("sport", required=True)
+@click.argument("country", required=True)
+@click.argument("league", required=True)
+@click.argument("team", required=True)
+@click.option("-t", "--time",
+              type=click.Choice(["next", "last"], case_sensitive=False),
+              default="last",
+              help="Select whether you want planned or already playe games"
+              )
+def get_team_games(sport: str, country: str, league: str, team: str,
+                    time: str) -> None:
+    """
+    Lists the past or following games of a team
+    """
+    date_ = 0
+    teams_ = 1
+
+    local_team_ = 0
+    away_team_ = 1
+
+    team_name_ = 0
+    team_score = 1
+
+    if time == "last":
+        team_league_games = spyglass.get_team_prev_games(sport, country,
+                                                            league, team)
+        g_msg = f"Last games of {team}:\n"
+
+        for league_games in team_league_games:
+            g_msg = g_msg + f"\tLeague - {league_games[0]}\n"
+
+            for games in league_games[1]:
+                g_msg = g_msg + f"\t\t{games[date_]}- " \
+                                f"{games[teams_][local_team_][team_name_]}> " \
+                                f"{games[teams_][local_team_][team_score]} | "\
+                                f"{games[teams_][away_team_][team_score]} <"  \
+                                f"{games[teams_][away_team_][team_name_]}\n"
+    else:
+        team_games = spyglass.get_team_next_games(sport, country, league, team)
+        g_msg = f"Next games of {team} in {league}:\n"
+
+        for game in team_games:
+            g_msg = g_msg + f"\t{game[date_]}- {game[teams_][local_team_]}"\
+                                    f" vs. {game[teams_][away_team_]}\n"
+
+    console.print(
+        f"{g_msg}"
+    )
+
+    return None
+
 
 #//////////////////////////////////////////////////////////////////////#
 #//////////////////////////////////////////////////////////////////////#
@@ -178,6 +230,7 @@ marcadorescli.add_command(get_leagues_countries)
 marcadorescli.add_command(get_reg_league)
 marcadorescli.add_command(get_results)
 marcadorescli.add_command(get_standings)
+marcadorescli.add_command(get_team_games)
 
 if __name__ == "__main__":
     marcadorescli()
