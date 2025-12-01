@@ -238,6 +238,84 @@ def get_standings(sport: str, country: str, league: str):
 
     return standings
 
+def get_teams_league(sport: str, country: str, league: str):
+    """
+    Get function to obtain the current teams of a league. The resulting
+    list comes ordered by the points. 0 has the most points.
+    """
+    teams = []
+
+    # Standings contain: rank, team & points
+    standings = get_standings(sport, country, league)
+
+    # We extract only the 'team' key
+    for row in standings:
+        teams.append(row['team'])
+
+    return teams
+
+
+def get_team_keynames(sport: str, country: str, league: str):
+    """
+    Get function to obtain the keynames of the teams in a league.
+    The keynames are the team names used in the CLI.
+    """
+    teams_keynames = []
+
+    # This RE means: team/ followed for whatever (unless it's /) and
+    # then another / followed for whatever
+    KEYNAME_RE = r'team/([^/]+)/*'
+
+    options = Options()
+    options.add_argument("--headless=new")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-gpu")
+
+    driver = webdriver.Chrome(options=options)
+
+    standings_url = f"{config.FS_URL}/{sport}/{country}/{league}/standings/"
+    driver.get(standings_url)
+
+    # Wait until our selected table js's is loaded
+    try:
+        WebDriverWait(driver, 15).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR,
+                                            "#tournament-table"))
+        )
+    except TimeoutException:
+        driver.quit()
+        return teams_keynames
+
+    # Wait some extraseconds
+    time.sleep(2)
+
+    # We extract the rederized HTML
+    soup = BeautifulSoup(driver.page_source, "html.parser")
+    driver.quit()
+
+    table = soup.find("div", id=config.ID_TABLE)
+    rows = table.find_all("div", class_=config.CLASS_ROWSTANDING)
+
+    # We go row by row extracting the keyname
+    for row in rows:
+        name_tag = row.find(class_=config.CLASS_NAMEROW)
+
+        if not name_tag:
+            continue
+
+        href_team = name_tag.get("href")
+
+        match_re = re.search(r"/team/([^/]+)/", href_team)
+
+        if match_re:
+            # The Match would have 3 groups:
+            #   - group(0): team
+            #   - group(1): team_keyname
+            #   - group(2): team_id
+            teams_keynames.append(match_re.group(1))
+
+    return teams_keynames
+
 
 def get_team_id(sport: str, country: str, league: str, team: str) -> str:
     """
