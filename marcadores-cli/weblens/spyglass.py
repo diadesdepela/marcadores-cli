@@ -173,12 +173,19 @@ def get_results(sport: str, country: str, league: str, round: int = 0):
     return games
 
 
-def get_standings(sport: str, country: str, league: str):
+def get_league_raw_soup(sport: str, country: str, league: str)-> BeautifulSoup:
     """
-    Get function to obtain the current standings table for a league.
-    """
-    standings = []
+    Docstring for get_league_raw_soup
 
+    :param sport: Sport from which you want to extract the soup from
+    :type sport: str
+    :param country: Country from which you want to extract the soup from
+    :type country: str
+    :param league: league from which you want to extract the soup from
+    :type league: str
+    :return: Raw Soup Object of the standings HTML, with the JS loaded
+    :rtype: BeautifulSoup
+    """
     options = Options()
     options.add_argument("--headless=new")
     options.add_argument("--no-sandbox")
@@ -197,14 +204,27 @@ def get_standings(sport: str, country: str, league: str):
         )
     except TimeoutException:
         driver.quit()
-        return standings
+        # !TODO: Another error case to study
+        return -1
 
     # Wait some extraseconds
     time.sleep(2)
 
     # We extract the rederized HTML
-    soup = BeautifulSoup(driver.page_source, "html.parser")
+    league_raw_soup = BeautifulSoup(driver.page_source, "html.parser")
+
     driver.quit()
+
+    return league_raw_soup
+
+
+def get_standings(sport: str, country: str, league: str):
+    """
+    Get function to obtain the current standings table for a league.
+    """
+    standings = []
+
+    soup = get_league_raw_soup(sport, country, league)
 
     table = soup.find("div", id=config.ID_TABLE)
     rows = table.find_all("div", class_=config.CLASS_ROWSTANDING)
@@ -266,32 +286,7 @@ def get_team_keynames(sport: str, country: str, league: str):
     # then another / followed for whatever
     KEYNAME_RE = r'team/([^/]+)/*'
 
-    options = Options()
-    options.add_argument("--headless=new")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-gpu")
-
-    driver = webdriver.Chrome(options=options)
-
-    standings_url = f"{config.FS_URL}/{sport}/{country}/{league}/standings/"
-    driver.get(standings_url)
-
-    # Wait until our selected table js's is loaded
-    try:
-        WebDriverWait(driver, 15).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR,
-                                            "#tournament-table"))
-        )
-    except TimeoutException:
-        driver.quit()
-        return teams_keynames
-
-    # Wait some extraseconds
-    time.sleep(2)
-
-    # We extract the rederized HTML
-    soup = BeautifulSoup(driver.page_source, "html.parser")
-    driver.quit()
+    soup = get_league_raw_soup(sport, country, league)
 
     table = soup.find("div", id=config.ID_TABLE)
     rows = table.find_all("div", class_=config.CLASS_ROWSTANDING)
@@ -321,33 +316,7 @@ def get_team_id(sport: str, country: str, league: str, team: str) -> str:
     """
     Get function to obtain a certain team's ID
     """
-
-    options = Options()
-    options.add_argument("--headless=new")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-gpu")
-
-    driver = webdriver.Chrome(options=options)
-
-    standings_url = f"{config.FS_URL}/{sport}/{country}/{league}/standings/"
-    driver.get(standings_url)
-
-    # Wait until our selected table js's is loaded
-    try:
-        WebDriverWait(driver, 15).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR,
-                                            "#tournament-table"))
-        )
-    except TimeoutException:
-        driver.quit()
-        return
-
-    # Wait some extraseconds
-    time.sleep(2)
-
-    # We extract the rederized HTML
-    soup = BeautifulSoup(driver.page_source, "html.parser")
-    driver.quit()
+    soup = get_league_raw_soup(sport, country, league)
 
     table = soup.find("div", id=config.ID_TABLE)
     rows = table.find_all("div", class_=config.CLASS_ROWSTANDING)
