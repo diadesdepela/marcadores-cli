@@ -10,6 +10,7 @@ from . import config
 from . import rendering
 
 import re
+import json
 
 def get_sports_list() -> list[str]:
     """
@@ -411,3 +412,53 @@ def get_team_prev_games(sport: str, country: str, league: str, team: str):
     #
 
     return prev_games
+
+
+def get_news_sections() -> list[dict]:
+    """
+    Docstring for get_news_sections
+
+    :return: A list of dictionaries that contains two keys: name and url
+    of the sections of news available.
+    :rtype: list[dict]
+    """
+    sections = []
+
+    # News URL
+    news_url = f"{config.FS_URL}/news"
+
+    soup = rendering.get_soup(news_url)
+
+    # We get the script tags that loads by js
+    script_tags = soup.find_all('script', type="text/javascript")
+
+    # We select the tag that matches de regular expression
+    for tag in script_tags:
+        script_text = tag.get_text()
+        dropdown_re = r'window.fsNewsMenuData'
+
+        if re.match(dropdown_re, script_text):
+            dropdown_tag = tag
+
+    match = re.search(r"window\.fsNewsMenuData\s*=\s*(\{.*\})",
+                      dropdown_tag.get_text())
+
+    # The match.group(1) is the JSON that loads by the JS
+    json_news_section = match.group(1)
+    data_section = json.loads(json_news_section)
+
+    # The JSON has the menu key, which is what we want
+    for section in data_section['data']['menu']:
+        # Corner case
+        if section['name'] == 'TRANS_FSNEWS_ALL':
+            section_name = 'All'
+        # General case
+        else:
+            section_name = section['name']
+
+        sections.append({
+            "name": section_name,
+            "url": section['url']
+        })
+
+    return sections
