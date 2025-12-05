@@ -4,20 +4,11 @@
 #               the scoreboard
 #
 
-import requests
-
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.by import By
-from selenium.common.exceptions import TimeoutException
-
 from bs4 import BeautifulSoup
 
 from . import config
+from . import rendering
 
-import time
 import re
 
 def get_sports_list() -> list[str]:
@@ -27,9 +18,7 @@ def get_sports_list() -> list[str]:
     """
     sports = []
 
-    # Obtain page & soup
-    main_page = requests.get(config.FS_URL)
-    soup = BeautifulSoup(main_page.content, "html.parser")
+    soup = rendering.get_soup(config.FS_URL)
 
     # Obtain all the main sports via the class identifier
     main_sports_tag = soup.find_all(class_=config.ID_MAIN_SPORTS)
@@ -57,8 +46,7 @@ def get_league_countries(sport: str) -> list[str]:
     sport_url = config.FS_URL + "/" + sport
     #!TODO: Check whether the sport is correct or not. Investigate how
     #       handle errors and expections
-    sport_page = requests.get(sport_url)
-    soup = BeautifulSoup(sport_page.content, "html.parser")
+    soup = rendering.get_soup(sport_url)
 
     # Obtain first div element of HTML
     countries_tag = soup.find_all(class_=config.ID_MAIN_COUNTRIES)
@@ -81,8 +69,7 @@ def get_reg_leagues(sport: str, country: str) -> list[str]:
 
     #!TODO: Same... before arguments shall be checked, and they
     #       might shall not pass!
-    sport_coutry_page = requests.get(sport_country_url)
-    soup = BeautifulSoup(sport_coutry_page.content, "html.parser")
+    soup = rendering.get_soup(sport_country_url)
 
     reg_leagues_tag = soup.find_all(class_=config.ID_MAIN_REG_LEAGUES)
 
@@ -106,19 +93,10 @@ def get_results(sport: str, country: str, league: str, round: int = 0):
     """
     games = [ ]
 
-    # Configure Chrome
-    options = Options()
-    options.add_argument("--headless=new")        # No window popping-up
-
-    # We run Chrome
-    driver = webdriver.Chrome(options=options)
-
     # URL
     results_url = f"{config.FS_URL}/{sport}/{country}/{league}/results/"
 
-    driver.get(results_url)
-    html = driver.page_source
-    soup = BeautifulSoup(html, "html.parser")
+    soup = rendering.get_soup(results_url)
     # !TODO: Investigate a method / functionality to know if the JS
     #        has been loaded completely
 
@@ -186,34 +164,10 @@ def get_league_raw_soup(sport: str, country: str, league: str)-> BeautifulSoup:
     :return: Raw Soup Object of the standings HTML, with the JS loaded
     :rtype: BeautifulSoup
     """
-    options = Options()
-    options.add_argument("--headless=new")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-gpu")
-
-    driver = webdriver.Chrome(options=options)
-
     standings_url = f"{config.FS_URL}/{sport}/{country}/{league}/standings/"
-    driver.get(standings_url)
-
-    # Wait until our selected table js's is loaded
-    try:
-        WebDriverWait(driver, 15).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR,
-                                            "#tournament-table"))
-        )
-    except TimeoutException:
-        driver.quit()
-        # !TODO: Another error case to study
-        return -1
-
-    # Wait some extraseconds
-    time.sleep(2)
 
     # We extract the rederized HTML
-    league_raw_soup = BeautifulSoup(driver.page_source, "html.parser")
-
-    driver.quit()
+    league_raw_soup = rendering.get_soup(standings_url, "#tournament-table")
 
     return league_raw_soup
 
@@ -349,30 +303,8 @@ def get_team_next_games(sport: str, country: str, league: str, team: str):
     # To create the url
     team_url = f"{config.FS_URL}/team/{team}/{team_id}"
 
-    options = Options()
-    options.add_argument("--headless=new")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-gpu")
-
-    driver = webdriver.Chrome(options=options)
-    driver.get(team_url)
-
-    # Wait until our selected table js's is loaded
-    try:
-        WebDriverWait(driver, 15).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR,
-                                            f".{config.CLASS_SCHEDULED}"))
-        )
-    except TimeoutException:
-        driver.quit()
-        return
-
-    # Wait some extraseconds
-    time.sleep(2)
-
     # We extract the rederized HTML
-    soup = BeautifulSoup(driver.page_source, "html.parser")
-    driver.quit()
+    soup = rendering.get_soup(team_url, f".{config.CLASS_SCHEDULED}")
 
     section_tags = soup.find_all(class_=config.ID_SECTION)
 
@@ -416,30 +348,9 @@ def get_team_prev_games(sport: str, country: str, league: str, team: str):
     team_url = f"{config.FS_URL}/team/{team}/{team_id}"
     results_url = f"{team_url}/results"
 
-    options = Options()
-    options.add_argument("--headless=new")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-gpu")
-
-    driver = webdriver.Chrome(options=options)
-    driver.get(results_url)
-
-    # Wait until our selected table js's is loaded
-    try:
-        WebDriverWait(driver, 15).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR,
-                                            f".{config.CLASS_LEAGUE_TAG}"))
-        )
-    except TimeoutException:
-        driver.quit()
-        return
-
-    # Wait some extraseconds
-    time.sleep(2)
-
     # We extract the rederized HTML
-    soup = BeautifulSoup(driver.page_source, "html.parser")
-    driver.quit()
+    soup = rendering.get_soup(results_url,
+                              f".{config.CLASS_LEAGUE_TAG}")
 
     # print(soup)
 
