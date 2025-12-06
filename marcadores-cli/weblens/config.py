@@ -32,3 +32,8 @@ CLASS_HOME_TEAM_SCHEDULED="event__participant--home"
 
 CLASS_LEAGUE_TAG="event--leagues"
 CLASS_HEADER_LEAGUE="headerLeague__title-text"
+
+# IDENTIFIERS NEWS
+CLASS_NEWSSECTION = "fsNewsSection"
+CLASS_MISCNEWS = "fsNewsSection__mostRead"
+DATA_TESTID_ARTICLES = "wcl-newsArticlePreview"

@@ -8,6 +8,7 @@ from bs4 import BeautifulSoup
 
 from . import config
 from . import rendering
+from . import containers
 
 import re
 import json
@@ -462,3 +463,57 @@ def get_news_sections() -> list[dict]:
         })
 
     return sections
+
+
+def get_news(section: str) -> list[containers.Article]:
+    """
+    Get functionality that allows you to obtain the news from your
+    desired section/sport.
+
+    :param section: Description
+    :type section: str
+    :return: Description
+    :rtype: list[Article]
+    """
+    news = []
+    partial_section_url = None
+
+    available_sections = get_news_sections()
+
+    for isection in available_sections:
+        if isection['name'] == section:
+            partial_section_url = isection['url']
+
+    # !TODO: Another case of error handling
+    if partial_section_url is None:
+        print("Unknown section")
+        return -1
+
+    # Obtaining URL + Soup
+    section_url = config.FS_URL + partial_section_url
+    soup_news = rendering.get_soup(section_url)
+
+    news_tag = soup_news.find_all(class_=config.CLASS_NEWSSECTION)
+
+    # We are going trough the different news tags
+    for tag in news_tag:
+        # We avoid general news
+        if config.CLASS_MISCNEWS not in tag.get("class"):
+            for inner_tag in tag.contents:
+                article_identifier = inner_tag.get("data-testid")
+
+                # We choose only articles
+                if article_identifier == config.DATA_TESTID_ARTICLES:
+                    article = containers.Article(title=inner_tag.get("title"),
+                                                 url=inner_tag.get("href"),
+                                                 )
+                    date_tag = inner_tag.find("span")
+
+                    # Not all the article have date
+                    if date_tag is not None:
+                        date_text = date_tag.get_text()
+                        article.set_date(date_text)
+
+                    news.append(article)
+
+    return news
