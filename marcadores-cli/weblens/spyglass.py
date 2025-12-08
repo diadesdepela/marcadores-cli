@@ -4,21 +4,14 @@
 #               the scoreboard
 #
 
-import requests
-
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.by import By
-from selenium.common.exceptions import TimeoutException
-
 from bs4 import BeautifulSoup
 
 from . import config
+from . import rendering
+from . import containers
 
-import time
 import re
+import json
 
 def get_sports_list() -> list[str]:
     """
@@ -27,9 +20,7 @@ def get_sports_list() -> list[str]:
     """
     sports = []
 
-    # Obtain page & soup
-    main_page = requests.get(config.FS_URL)
-    soup = BeautifulSoup(main_page.content, "html.parser")
+    soup = rendering.get_soup(config.FS_URL)
 
     # Obtain all the main sports via the class identifier
     main_sports_tag = soup.find_all(class_=config.ID_MAIN_SPORTS)
@@ -57,8 +48,7 @@ def get_league_countries(sport: str) -> list[str]:
     sport_url = config.FS_URL + "/" + sport
     #!TODO: Check whether the sport is correct or not. Investigate how
     #       handle errors and expections
-    sport_page = requests.get(sport_url)
-    soup = BeautifulSoup(sport_page.content, "html.parser")
+    soup = rendering.get_soup(sport_url)
 
     # Obtain first div element of HTML
     countries_tag = soup.find_all(class_=config.ID_MAIN_COUNTRIES)
@@ -81,8 +71,7 @@ def get_reg_leagues(sport: str, country: str) -> list[str]:
 
     #!TODO: Same... before arguments shall be checked, and they
     #       might shall not pass!
-    sport_coutry_page = requests.get(sport_country_url)
-    soup = BeautifulSoup(sport_coutry_page.content, "html.parser")
+    soup = rendering.get_soup(sport_country_url)
 
     reg_leagues_tag = soup.find_all(class_=config.ID_MAIN_REG_LEAGUES)
 
@@ -106,19 +95,10 @@ def get_results(sport: str, country: str, league: str, round: int = 0):
     """
     games = [ ]
 
-    # Configure Chrome
-    options = Options()
-    options.add_argument("--headless=new")        # No window popping-up
-
-    # We run Chrome
-    driver = webdriver.Chrome(options=options)
-
     # URL
     results_url = f"{config.FS_URL}/{sport}/{country}/{league}/results/"
 
-    driver.get(results_url)
-    html = driver.page_source
-    soup = BeautifulSoup(html, "html.parser")
+    soup = rendering.get_soup(results_url)
     # !TODO: Investigate a method / functionality to know if the JS
     #        has been loaded completely
 
@@ -173,38 +153,34 @@ def get_results(sport: str, country: str, league: str, round: int = 0):
     return games
 
 
+def get_league_raw_soup(sport: str, country: str, league: str)-> BeautifulSoup:
+    """
+    Docstring for get_league_raw_soup
+
+    :param sport: Sport from which you want to extract the soup from
+    :type sport: str
+    :param country: Country from which you want to extract the soup from
+    :type country: str
+    :param league: league from which you want to extract the soup from
+    :type league: str
+    :return: Raw Soup Object of the standings HTML, with the JS loaded
+    :rtype: BeautifulSoup
+    """
+    standings_url = f"{config.FS_URL}/{sport}/{country}/{league}/standings/"
+
+    # We extract the rederized HTML
+    league_raw_soup = rendering.get_soup(standings_url, "#tournament-table")
+
+    return league_raw_soup
+
+
 def get_standings(sport: str, country: str, league: str):
     """
     Get function to obtain the current standings table for a league.
     """
     standings = []
 
-    options = Options()
-    options.add_argument("--headless=new")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-gpu")
-
-    driver = webdriver.Chrome(options=options)
-
-    standings_url = f"{config.FS_URL}/{sport}/{country}/{league}/standings/"
-    driver.get(standings_url)
-
-    # Wait until our selected table js's is loaded
-    try:
-        WebDriverWait(driver, 15).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR,
-                                            "#tournament-table"))
-        )
-    except TimeoutException:
-        driver.quit()
-        return standings
-
-    # Wait some extraseconds
-    time.sleep(2)
-
-    # We extract the rederized HTML
-    soup = BeautifulSoup(driver.page_source, "html.parser")
-    driver.quit()
+    soup = get_league_raw_soup(sport, country, league)
 
     table = soup.find("div", id=config.ID_TABLE)
     rows = table.find_all("div", class_=config.CLASS_ROWSTANDING)
@@ -238,38 +214,65 @@ def get_standings(sport: str, country: str, league: str):
 
     return standings
 
+def get_teams_league(sport: str, country: str, league: str):
+    """
+    Get function to obtain the current teams of a league. The resulting
+    list comes ordered by the points. 0 has the most points.
+    """
+    teams = []
+
+    # Standings contain: rank, team & points
+    standings = get_standings(sport, country, league)
+
+    # We extract only the 'team' key
+    for row in standings:
+        teams.append(row['team'])
+
+    return teams
+
+
+def get_team_keynames(sport: str, country: str, league: str):
+    """
+    Get function to obtain the keynames of the teams in a league.
+    The keynames are the team names used in the CLI.
+    """
+    teams_keynames = []
+
+    # This RE means: team/ followed for whatever (unless it's /) and
+    # then another / followed for whatever
+    KEYNAME_RE = r'team/([^/]+)/*'
+
+    soup = get_league_raw_soup(sport, country, league)
+
+    table = soup.find("div", id=config.ID_TABLE)
+    rows = table.find_all("div", class_=config.CLASS_ROWSTANDING)
+
+    # We go row by row extracting the keyname
+    for row in rows:
+        name_tag = row.find(class_=config.CLASS_NAMEROW)
+
+        if not name_tag:
+            continue
+
+        href_team = name_tag.get("href")
+
+        match_re = re.search(r"/team/([^/]+)/", href_team)
+
+        if match_re:
+            # The Match would have 3 groups:
+            #   - group(0): team
+            #   - group(1): team_keyname
+            #   - group(2): team_id
+            teams_keynames.append(match_re.group(1))
+
+    return teams_keynames
+
 
 def get_team_id(sport: str, country: str, league: str, team: str) -> str:
     """
     Get function to obtain a certain team's ID
     """
-
-    options = Options()
-    options.add_argument("--headless=new")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-gpu")
-
-    driver = webdriver.Chrome(options=options)
-
-    standings_url = f"{config.FS_URL}/{sport}/{country}/{league}/standings/"
-    driver.get(standings_url)
-
-    # Wait until our selected table js's is loaded
-    try:
-        WebDriverWait(driver, 15).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR,
-                                            "#tournament-table"))
-        )
-    except TimeoutException:
-        driver.quit()
-        return
-
-    # Wait some extraseconds
-    time.sleep(2)
-
-    # We extract the rederized HTML
-    soup = BeautifulSoup(driver.page_source, "html.parser")
-    driver.quit()
+    soup = get_league_raw_soup(sport, country, league)
 
     table = soup.find("div", id=config.ID_TABLE)
     rows = table.find_all("div", class_=config.CLASS_ROWSTANDING)
@@ -291,6 +294,65 @@ def get_team_id(sport: str, country: str, league: str, team: str) -> str:
 
     #!TODO: Add a corner case if team is not found
 
+def get_team_squad(sport: str, country: str, league: str,
+                    team: str) -> list[containers.Player]:
+    """
+    Get functionality that allows you to the whole squad from a certain
+    team.
+
+    :param sport: Description
+    :type sport: str
+    :param country: Description
+    :type country: str
+    :param league: Description
+    :type league: str
+    :param team: Description
+    :type team: str
+    :return: Description
+    :rtype: list[Player]
+    """
+    squad = []
+    names = []
+
+     # We need the id...
+    team_id = get_team_id(sport, country, league, team)
+
+    # To create the url
+    squad_url = f"{config.FS_URL}/team/{team}/{team_id}/squad"
+
+    # We extract the rederized HTML
+    squad_soup = rendering.get_soup(squad_url)
+
+    # Each row contains a player from the table
+    players_tag = squad_soup.find_all(class_=config.CLASS_LU_ROW)
+
+    for player_tag in players_tag:
+        name_tag = player_tag.find(class_=config.CLASS_SQ_NAME)
+        if name_tag:
+            name = name_tag.get_text(strip=True)
+
+        # There are different squads, therefore we check if it has been
+        # added before
+        if name not in names:
+            names.append(name)
+
+            # We reset variables if age or jersey are not found,
+            # for instance coaches
+            age = None
+            jersey = None
+
+            age_tag = player_tag.find(class_=config.CLASS_SQ_AGE)
+            if age_tag:
+                age = age_tag.get_text(strip=True)
+
+            jersey_tag = player_tag.find(class_=config.CLASS_SQ_NUM)
+            if jersey_tag:
+                jersey = jersey_tag.get_text(strip=True)
+
+            squad.append(containers.Player(name, age, jersey))
+
+    return squad
+
 
 # !TODO: Change how this internally works and use the "fixtures" subpage
 # !TODO: Add documentation
@@ -302,30 +364,8 @@ def get_team_next_games(sport: str, country: str, league: str, team: str):
     # To create the url
     team_url = f"{config.FS_URL}/team/{team}/{team_id}"
 
-    options = Options()
-    options.add_argument("--headless=new")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-gpu")
-
-    driver = webdriver.Chrome(options=options)
-    driver.get(team_url)
-
-    # Wait until our selected table js's is loaded
-    try:
-        WebDriverWait(driver, 15).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR,
-                                            f".{config.CLASS_SCHEDULED}"))
-        )
-    except TimeoutException:
-        driver.quit()
-        return
-
-    # Wait some extraseconds
-    time.sleep(2)
-
     # We extract the rederized HTML
-    soup = BeautifulSoup(driver.page_source, "html.parser")
-    driver.quit()
+    soup = rendering.get_soup(team_url, f".{config.CLASS_SCHEDULED}")
 
     section_tags = soup.find_all(class_=config.ID_SECTION)
 
@@ -369,30 +409,9 @@ def get_team_prev_games(sport: str, country: str, league: str, team: str):
     team_url = f"{config.FS_URL}/team/{team}/{team_id}"
     results_url = f"{team_url}/results"
 
-    options = Options()
-    options.add_argument("--headless=new")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-gpu")
-
-    driver = webdriver.Chrome(options=options)
-    driver.get(results_url)
-
-    # Wait until our selected table js's is loaded
-    try:
-        WebDriverWait(driver, 15).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR,
-                                            f".{config.CLASS_LEAGUE_TAG}"))
-        )
-    except TimeoutException:
-        driver.quit()
-        return
-
-    # Wait some extraseconds
-    time.sleep(2)
-
     # We extract the rederized HTML
-    soup = BeautifulSoup(driver.page_source, "html.parser")
-    driver.quit()
+    soup = rendering.get_soup(results_url,
+                              f".{config.CLASS_LEAGUE_TAG}")
 
     # print(soup)
 
@@ -453,3 +472,107 @@ def get_team_prev_games(sport: str, country: str, league: str, team: str):
     #
 
     return prev_games
+
+
+def get_news_sections() -> list[dict]:
+    """
+    Docstring for get_news_sections
+
+    :return: A list of dictionaries that contains two keys: name and url
+    of the sections of news available.
+    :rtype: list[dict]
+    """
+    sections = []
+
+    # News URL
+    news_url = f"{config.FS_URL}/news"
+
+    soup = rendering.get_soup(news_url)
+
+    # We get the script tags that loads by js
+    script_tags = soup.find_all('script', type="text/javascript")
+
+    # We select the tag that matches de regular expression
+    for tag in script_tags:
+        script_text = tag.get_text()
+        dropdown_re = r'window.fsNewsMenuData'
+
+        if re.match(dropdown_re, script_text):
+            dropdown_tag = tag
+
+    match = re.search(r"window\.fsNewsMenuData\s*=\s*(\{.*\})",
+                      dropdown_tag.get_text())
+
+    # The match.group(1) is the JSON that loads by the JS
+    json_news_section = match.group(1)
+    data_section = json.loads(json_news_section)
+
+    # The JSON has the menu key, which is what we want
+    for section in data_section['data']['menu']:
+        # Corner case
+        if section['name'] == 'TRANS_FSNEWS_ALL':
+            section_name = 'All'
+        # General case
+        else:
+            section_name = section['name']
+
+        sections.append({
+            "name": section_name,
+            "url": section['url']
+        })
+
+    return sections
+
+
+def get_news(section: str) -> list[containers.Article]:
+    """
+    Get functionality that allows you to obtain the news from your
+    desired section/sport.
+
+    :param section: Description
+    :type section: str
+    :return: Description
+    :rtype: list[Article]
+    """
+    news = []
+    partial_section_url = None
+
+    available_sections = get_news_sections()
+
+    for isection in available_sections:
+        if isection['name'] == section:
+            partial_section_url = isection['url']
+
+    # !TODO: Another case of error handling
+    if partial_section_url is None:
+        print("Unknown section")
+        return -1
+
+    # Obtaining URL + Soup
+    section_url = config.FS_URL + partial_section_url
+    soup_news = rendering.get_soup(section_url)
+
+    news_tag = soup_news.find_all(class_=config.CLASS_NEWSSECTION)
+
+    # We are going trough the different news tags
+    for tag in news_tag:
+        # We avoid general news
+        if config.CLASS_MISCNEWS not in tag.get("class"):
+            for inner_tag in tag.contents:
+                article_identifier = inner_tag.get("data-testid")
+
+                # We choose only articles
+                if article_identifier == config.DATA_TESTID_ARTICLES:
+                    article = containers.Article(title=inner_tag.get("title"),
+                                                 url=inner_tag.get("href"),
+                                                 )
+                    date_tag = inner_tag.find("span")
+
+                    # Not all the article have date
+                    if date_tag is not None:
+                        date_text = date_tag.get_text()
+                        article.set_date(date_text)
+
+                    news.append(article)
+
+    return news
