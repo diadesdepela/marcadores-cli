@@ -1,5 +1,23 @@
 from dataclasses import dataclass
 
+
+@dataclass
+class Player:
+    """
+    Docstring for Player
+
+    :attribute name: Pretty intuitive
+    :type name: str
+    :attribute age: Age of the player
+    :type age: int
+    :attribute squad_number: Jersey number
+    :type squad_number: int
+    """
+
+    name: str
+    age : int
+    squad_number: int = None
+
 @dataclass
 class Article:
     """

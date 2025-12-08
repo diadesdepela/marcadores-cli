@@ -294,6 +294,65 @@ def get_team_id(sport: str, country: str, league: str, team: str) -> str:
 
     #!TODO: Add a corner case if team is not found
 
+def get_team_squad(sport: str, country: str, league: str,
+                    team: str) -> list[containers.Player]:
+    """
+    Get functionality that allows you to the whole squad from a certain
+    team.
+
+    :param sport: Description
+    :type sport: str
+    :param country: Description
+    :type country: str
+    :param league: Description
+    :type league: str
+    :param team: Description
+    :type team: str
+    :return: Description
+    :rtype: list[Player]
+    """
+    squad = []
+    names = []
+
+     # We need the id...
+    team_id = get_team_id(sport, country, league, team)
+
+    # To create the url
+    squad_url = f"{config.FS_URL}/team/{team}/{team_id}/squad"
+
+    # We extract the rederized HTML
+    squad_soup = rendering.get_soup(squad_url)
+
+    # Each row contains a player from the table
+    players_tag = squad_soup.find_all(class_=config.CLASS_LU_ROW)
+
+    for player_tag in players_tag:
+        name_tag = player_tag.find(class_=config.CLASS_SQ_NAME)
+        if name_tag:
+            name = name_tag.get_text(strip=True)
+
+        # There are different squads, therefore we check if it has been
+        # added before
+        if name not in names:
+            names.append(name)
+
+            # We reset variables if age or jersey are not found,
+            # for instance coaches
+            age = None
+            jersey = None
+
+            age_tag = player_tag.find(class_=config.CLASS_SQ_AGE)
+            if age_tag:
+                age = age_tag.get_text(strip=True)
+
+            jersey_tag = player_tag.find(class_=config.CLASS_SQ_NUM)
+            if jersey_tag:
+                jersey = jersey_tag.get_text(strip=True)
+
+            squad.append(containers.Player(name, age, jersey))
+
+    return squad
+
 
 # !TODO: Change how this internally works and use the "fixtures" subpage
 # !TODO: Add documentation

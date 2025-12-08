@@ -37,3 +37,9 @@ CLASS_HEADER_LEAGUE="headerLeague__title-text"
 CLASS_NEWSSECTION = "fsNewsSection"
 CLASS_MISCNEWS = "fsNewsSection__mostRead"
 DATA_TESTID_ARTICLES = "wcl-newsArticlePreview"
+
+# IDENTIFIERS TEAM SQUAD
+CLASS_LU_ROW = "lineupTable__row"
+CLASS_SQ_NAME = "lineupTable__cell--name"
+CLASS_SQ_AGE = "lineupTable__cell--age"
+CLASS_SQ_NUM = "lineupTable__cell--jersey"
