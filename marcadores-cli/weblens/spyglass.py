@@ -13,32 +13,43 @@ from . import containers
 import re
 import json
 
-def get_sports_list() -> list[str]:
+def get_sports_dict() -> dict:
     """
-    Looks for the available sports in the webpage, using the class
-    identifier from the HTML file
+    Get funcitonality that allows you to see the available sports in
+    the website
+
+    :return: The available sports. Dictionary. Key: url, value: name of
+    the sport
+    :rtype: dict
     """
-    sports = []
+    sports = {}
 
     soup = rendering.get_soup(config.FS_URL)
 
     # Obtain all the main sports via the class identifier
-    main_sports_tag = soup.find_all(class_=config.ID_MAIN_SPORTS)
-    minority_sports_tag = soup.find_all(class_=config.ID_MINO_SPORTS)
+    main_sports_tag = soup.find_all(class_=config.ID_MAIN_ITEMS)
+    minority_sports_tag = soup.find_all(class_=config.ID_MINO_ITEMS)
 
     # Fill our main sport list
     for main_tag in main_sports_tag:
-        sports.append(main_tag.get_text(strip=True))
+        main_sport_tag = main_tag.find(class_=config.ID_MAIN_SPORTS)
 
-    # Fill the minority sport list
-    for minority_tag in minority_sports_tag:
-        minority_sport = minority_tag.get_text(strip=True)
+        if main_sport_tag:
+            sport_text = main_sport_tag.get_text(strip=True)
+            sport_href = main_tag.get("href")
 
-        # Avoid repetition and the 'More' corner case
-        if minority_sport not in sports and minority_sport != '':
-            sports.append(minority_sport)
+            sports.update({sport_href: sport_text})
 
-    # 'Favorites' will remain here for further development
+    # TODO!: Add the "--expanded" feature here (?)
+    # Fill our minority sport list
+    for mino_tag in minority_sports_tag:
+        mino_sport_tag = mino_tag.find(class_=config.ID_MINO_SPORTS)
+
+        if mino_sport_tag:
+            sport_text = mino_sport_tag.get_text(strip=True)
+            sport_href = mino_tag.get("href")
+
+            sports.update({sport_href: sport_text})
 
     return sports
 

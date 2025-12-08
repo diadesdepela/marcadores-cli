@@ -16,17 +16,17 @@ def marcadorescli():
     pass
 
 
-@click.command("list-of-sports")
+@click.command("list_of_sports")
 def list_of_sports() -> None:
     """
     List of sports available to show.
     """
-    sport_list = spyglass.get_sports_list()
+    sports = spyglass.get_sports_dict()
 
     list_msg = f"List of sports\n"
 
-    for sport in sport_list:
-        list_msg = list_msg + f"   {sport}\n"
+    for url, sport in sports.items():
+        list_msg = list_msg + f"\t{sport} - {url}\n"
 
     console.print(
             f"{list_msg}"
