@@ -1,10 +1,10 @@
 [tool.poetry]
 name = "marcadores-cli"
-version = "0.0.2"
-description = "This project is a CLI that allows you to check live
-               scoreboards from www.flashscore through your prefered terminal"
+version = "0.0.3"
+description = "This project is a CLI that allows you to check live scoreboards from www.flashscore through your prefered terminal"
 authors = ["diadesdepela@gmail.com"]
 readme = "README.md"
+package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.12"
