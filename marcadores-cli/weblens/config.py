@@ -7,6 +7,7 @@
 FS_URL="https://www.flashscore.com"
 
 ID_MAIN_SPORTS="menuTop__text"
+ID_MINO_SPORTS="menuMinority__text"
 ID_MAIN_COUNTRIES="left_menu_categories_seo"
 ID_MAIN_REG_LEAGUES="leftMenu__href"
 

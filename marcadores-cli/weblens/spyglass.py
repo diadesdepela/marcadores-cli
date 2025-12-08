@@ -24,13 +24,21 @@ def get_sports_list() -> list[str]:
 
     # Obtain all the main sports via the class identifier
     main_sports_tag = soup.find_all(class_=config.ID_MAIN_SPORTS)
+    minority_sports_tag = soup.find_all(class_=config.ID_MINO_SPORTS)
 
-    # Fill our list
-    for tag in main_sports_tag:
-        sports.append(tag.get_text(strip=True))
+    # Fill our main sport list
+    for main_tag in main_sports_tag:
+        sports.append(main_tag.get_text(strip=True))
 
-    #!TODO: Add the secondary sports, create special case for
-    #       'Favourites'
+    # Fill the minority sport list
+    for minority_tag in minority_sports_tag:
+        minority_sport = minority_tag.get_text(strip=True)
+
+        # Avoid repetition and the 'More' corner case
+        if minority_sport not in sports and minority_sport != '':
+            sports.append(minority_sport)
+
+    # 'Favorites' will remain here for further development
 
     return sports
 
