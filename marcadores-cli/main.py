@@ -15,18 +15,23 @@ def marcadorescli():
     """CLI Main Entry point"""
     pass
 
-
+@click.option("-e", "--expanded", help="Allows the command to show an " \
+                                  "expanded list of sports.", is_flag=True)
 @click.command("list_of_sports")
-def list_of_sports() -> None:
+def list_of_sports(expanded: bool = False) -> None:
     """
     List of sports available to show.
     """
-    sports = spyglass.get_sports_dict()
+    main_sports, minority_sports = spyglass.get_sports_dicts()
 
     list_msg = f"List of sports\n"
 
-    for url, sport in sports.items():
+    for url, sport in main_sports.items():
         list_msg = list_msg + f"\t{sport} - {url}\n"
+
+    if expanded:
+        for url, sport in minority_sports.items():
+            list_msg = list_msg + f"\t{sport} - {url}\n"
 
     console.print(
             f"{list_msg}"

@@ -13,7 +13,7 @@ from . import containers
 import re
 import json
 
-def get_sports_dict() -> dict:
+def get_sports_dicts() -> tuple[dict, dict]:
     """
     Get funcitonality that allows you to see the available sports in
     the website
@@ -22,7 +22,8 @@ def get_sports_dict() -> dict:
     the sport
     :rtype: dict
     """
-    sports = {}
+    main_sports = {}
+    minority_sports = {}
 
     soup = rendering.get_soup(config.FS_URL)
 
@@ -38,9 +39,8 @@ def get_sports_dict() -> dict:
             sport_text = main_sport_tag.get_text(strip=True)
             sport_href = main_tag.get("href")
 
-            sports.update({sport_href: sport_text})
+            main_sports.update({sport_href: sport_text})
 
-    # TODO!: Add the "--expanded" feature here (?)
     # Fill our minority sport list
     for mino_tag in minority_sports_tag:
         mino_sport_tag = mino_tag.find(class_=config.ID_MINO_SPORTS)
@@ -49,9 +49,9 @@ def get_sports_dict() -> dict:
             sport_text = mino_sport_tag.get_text(strip=True)
             sport_href = mino_tag.get("href")
 
-            sports.update({sport_href: sport_text})
+            minority_sports.update({sport_href: sport_text})
 
-    return sports
+    return main_sports, minority_sports
 
 
 #!TODO: Bug detected in this functionality, does not work correctly
