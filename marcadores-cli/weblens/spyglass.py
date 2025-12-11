@@ -54,14 +54,18 @@ def get_sports_dicts() -> tuple[dict, dict]:
     return main_sports, minority_sports
 
 
-#!TODO: Bug detected in this functionality, does not work correctly
-#       ID from the find_all must be changed. Might be
-#       lmc__elementName or smth like that (?)
-def get_league_countries(sport: str) -> list[str]:
+def get_league_countries(sport: str) -> tuple[dict, dict]:
     """
-    Get function to see available countries and leagues within an sport
+    Docstring for get_league_countries
+
+    :param sport: Desired sport from where to obtain the different
+    countries availables
+    :type sport: str
+    :return: Tuple that contains the countries and the competitions
+    :rtype: tuple[dict, dict]
     """
-    countries = []
+    countries = {}
+    competitions = {}
 
     # Obtain page & soup
     sport_url = config.FS_URL + "/" + sport
@@ -69,14 +73,32 @@ def get_league_countries(sport: str) -> list[str]:
     #       handle errors and expections
     soup = rendering.get_soup(sport_url)
 
-    # Obtain first div element of HTML
-    countries_tag = soup.find_all(class_=config.ID_MAIN_COUNTRIES)
+    script_tags = soup.find_all('script')
 
-    # Go through the div adding the different countries and leagues
-    for c in countries_tag[0].find_all(True):
-        countries.append(c.get_text(strip=True))
+    for tag in script_tags:
+        script_text = tag.get_text()
 
-    return countries
+        if (config.VAR_JSON_COUNTRIES in script_text and
+            config.VAR_JSON_COUNTRIES in script_text):
+            countries_tag = tag
+            break
+
+    # Regular expresion that follows the json inside the js variable
+    rawdata_re = r'rawData\s*:\s*(\[\{.*?\}\]\}\])'
+
+    match = re.search(rawdata_re, countries_tag.get_text(), flags=re.DOTALL)
+    raw_json = match.group(1)
+
+    raw_data = json.loads(raw_json)
+
+    # There are two main parts: 'countries' and 'other competitions'
+    for country in raw_data[0][config.DICT_KEY_COUNTRIES]:
+        countries.update({country["ML"]: country["MCN"]})
+
+    for competition in raw_data[1][config.DICT_KEY_COUNTRIES]:
+        competitions.update({competition["ML"]: competition["MCN"]})
+
+    return countries, competitions
 
 
 def get_reg_leagues(sport: str, country: str) -> list[str]:

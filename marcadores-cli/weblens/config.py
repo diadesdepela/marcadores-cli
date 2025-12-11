@@ -13,6 +13,10 @@ ID_MINO_ITEMS="menuMinority__item"
 ID_MAIN_COUNTRIES="left_menu_categories_seo"
 ID_MAIN_REG_LEAGUES="leftMenu__href"
 
+VAR_JAVAS_COUNTRIES="rawData"
+VAR_JSON_COUNTRIES="inputData"
+DICT_KEY_COUNTRIES="SCC"
+
 ID_ROUND="event__round"
 ID_MATCHROW="event__match"
 ID_LOCALTEAM="event__homeParticipant"

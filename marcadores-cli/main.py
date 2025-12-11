@@ -7,6 +7,9 @@ from rich.panel import Panel
 from rich.text import Text
 from rich.table import Table
 
+
+# !TODO: I should divide this code part where all the commands are
+#        defined somewhere else, definetly
 console = Console()
 
 
@@ -40,12 +43,16 @@ def list_of_sports(expanded: bool = False) -> None:
     return None
 
 
-@click.command("get-leagues-countries")
+@click.command("get_leagues_countries")
 @click.argument("sport", required=True, nargs=1)
 @click.option("-l", "--letter", help="Pass a single character to filter out " \
                                      "the leagues shown based on the initial" \
                                      "letter", show_default=True)
-def get_leagues_countries(sport: str, letter: str | None = None) -> None:
+@click.option("-e", "--expanded", help="Allows the command to show an " \
+                                  "expanded list of countries/leagues.", \
+                                  is_flag=True)
+def get_leagues_countries(sport: str, letter: str | None = None,
+                          expanded: bool = False) -> None:
     """
     Lists the available countries or international leagues for a sport
     """
@@ -57,16 +64,24 @@ def get_leagues_countries(sport: str, letter: str | None = None) -> None:
         click.help_option()
 
     # We obtain the list and start building the message
-    league_list = spyglass.get_league_countries(sport)
+    countries_list, other_comps = spyglass.get_league_countries(sport)
+
+    # --expanded option flag
+    if expanded:
+        league_list = countries_list | other_comps
+    else:
+        league_list = countries_list
+
     league_msg = f"Available leagues & countries for {sport}\n"
 
+    # --letter / -l option...
     if letter is not None:
-        for league in league_list:
+        for url, league in league_list.items():
             if letter.lower() == league[0].lower():
-                    league_msg = league_msg + f"   {league}\n"
+                    league_msg = league_msg + f"   {league} - {url}\n"
     else:
-        for league in league_list:
-            league_msg = league_msg + f"   {league}\n"
+        for url, league in league_list.items():
+            league_msg = league_msg + f"   {league} - {url}\n"
 
     console.print(
         f"{league_msg}"
