@@ -69,8 +69,6 @@ def get_league_countries(sport: str) -> tuple[dict, dict]:
 
     # Obtain page & soup
     sport_url = config.FS_URL + "/" + sport
-    #!TODO: Check whether the sport is correct or not. Investigate how
-    #       handle errors and expections
     soup = rendering.get_soup(sport_url)
 
     script_tags = soup.find_all('script')
@@ -110,8 +108,6 @@ def get_reg_leagues(sport: str, country: str) -> list[str]:
     # Obtain page & soup
     sport_country_url = config.FS_URL + "/" + sport + "/" + country
 
-    #!TODO: Same... before arguments shall be checked, and they
-    #       might shall not pass!
     soup = rendering.get_soup(sport_country_url)
 
     reg_leagues_tag = soup.find_all(class_=config.ID_MAIN_REG_LEAGUES)
@@ -140,8 +136,6 @@ def get_results(sport: str, country: str, league: str, round: int = 0):
     results_url = f"{config.FS_URL}/{sport}/{country}/{league}/results/"
 
     soup = rendering.get_soup(results_url)
-    # !TODO: Investigate a method / functionality to know if the JS
-    #        has been loaded completely
 
     # Find all the games
     round_tag = soup.find_all(class_=config.ID_ROUND)
