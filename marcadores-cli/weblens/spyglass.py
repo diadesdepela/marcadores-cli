@@ -324,7 +324,18 @@ def get_team_keynames(sport: str, country: str, league: str):
 
 def get_team_id(sport: str, country: str, league: str, team: str) -> str:
     """
-    Get function to obtain a certain team's ID
+    Internal get functionality to obtain a certain team's id
+
+    :param sport: Given sport in which the team is
+    :type sport: str
+    :param country: Given country in which the team is
+    :type country: str
+    :param league: Given league in which the team is
+    :type league: str
+    :param team: Keyname of the team
+    :type team: str
+    :return: ID of the given's keyname team
+    :rtype: str
     """
     soup = get_league_raw_soup(sport, country, league)
 
@@ -345,8 +356,10 @@ def get_team_id(sport: str, country: str, league: str, team: str) -> str:
 
         if splitted_team_href[2] == team:
             return splitted_team_href[3]
+    else:
+        raise ValueError("Bad Argument Error - [TEAM]. "
+                        f"No team {team} has been found")
 
-    #!TODO: Add a corner case if team is not found
 
 def get_team_squad(sport: str, country: str, league: str,
                     team: str) -> list[containers.Player]:
