@@ -243,10 +243,6 @@ def get_standings(sport: str, country: str, league: str):
 
         points_tag = row.find(class_=config.CLASS_POINTSROW)
 
-        # !TODO: For instance in NBA there are no points. Just W / L
-        #        Here would be nice a good treatment of errors and
-        #        exceptions. "get_text()" pops up an error if it is
-        #        None
         if points_tag is not None:
             points = points_tag.get_text()
         else:
