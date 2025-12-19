@@ -133,9 +133,6 @@ def get_results(sport: str, country: str, league: str,
     # We obtain the result list
     results = spyglass.get_results(sport, country, league, round)
 
-    # !TODO: Normalize the round number to the actual one. Probably
-    #        a "get_last_round_number" function or similar has to be
-    #        made
     reg_league_msg = f"Results of round {round} in {league}:\n"
 
     # [0] -> Always local/home

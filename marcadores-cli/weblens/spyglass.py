@@ -139,8 +139,19 @@ def get_results(sport: str, country: str, league: str, round: int = 0):
 
     # Find all the games
     round_tag = soup.find_all(class_=config.ID_ROUND)
-    # !TODO: Correct if list index "round" is out of range and invert it
-    # so it fits
+
+    # We obtain the first round (last one that occurred)
+    last_round_text = round_tag[0].get_text()
+    round_re = r"^Round\s(\d+)$"
+    match = re.match(round_re, last_round_text)
+    last_round_n = int(match.group(1))
+
+    # We check whether it has happened or not
+    desired_round_n = last_round_n - round
+
+    if desired_round_n < 0:
+        raise ValueError("Bad Argument Error - [ROUND]. "
+                         f"Last round was {last_round_n}")
 
     # ------------------------------------------------------------------
     # Take the first match...
@@ -164,7 +175,7 @@ def get_results(sport: str, country: str, league: str, round: int = 0):
     #                                   // We stop!
     #
     # ------------------------------------------------------------------
-    cmatch = round_tag[round].find_next_sibling()
+    cmatch = round_tag[desired_round_n].find_next_sibling()
 
     while(cmatch.get("class")[0] == config.ID_MATCHROW):
         # We get local team and score
