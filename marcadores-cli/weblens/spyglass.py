@@ -397,8 +397,20 @@ def get_team_squad(sport: str, country: str, league: str,
 
 
 # !TODO: Change how this internally works and use the "fixtures" subpage
-# !TODO: Add documentation
 def get_team_next_games(sport: str, country: str, league: str, team: str):
+    """
+    This get functionality allows you to check the games that are
+    registered to occur to a certain team
+
+    :param sport: Desired sport to analyze
+    :type sport: str
+    :param country: Desired country
+    :type country: str
+    :param league: Desired league
+    :type league: str
+    :param team: Desired team from which will be listed the next games
+    :type team: str
+    """
     next_games = [ ]
 
     # We need the id...
