@@ -99,11 +99,18 @@ def get_league_countries(sport: str) -> tuple[dict, dict]:
     return countries, competitions
 
 
-def get_reg_leagues(sport: str, country: str) -> list[str]:
+def get_reg_leagues(sport: str, country: str) -> dict:
     """
-    Get function to see available regional leagues within a country
+    Get functionality to obtain a dictionary of all the leagues
+
+    :param sport: Desired sport from where to obtain the leagues
+    :type sport: str
+    :param country: Desired country from where to obtain the leagues
+    :type country: str
+    :return: String dictionary of keyname_league, name_league
+    :rtype: dict
     """
-    reg_leagues = []
+    reg_leagues = {}
 
     # Obtain page & soup
     sport_country_url = config.FS_URL + "/" + sport + "/" + country
@@ -111,17 +118,22 @@ def get_reg_leagues(sport: str, country: str) -> list[str]:
     soup = rendering.get_soup(sport_country_url)
 
     reg_leagues_tag = soup.find_all(class_=config.ID_MAIN_REG_LEAGUES)
+    reg_league_re = rf"/{sport}/{country}/([^/]+)/"
 
     # Go through the tag checking the different reg_leagues
     for rl in reg_leagues_tag:
-        reg_leagues.append(rl.get_text(strip=True))
+        reg_league_url = rl.get("href")
+        # The regular expression allows us to:
+        #   1. Filter that is indeed from "sport" and "country" given
+        #      as argument
+        #   2. Obtain the "keyname"
+        match_reg_league = re.match(reg_league_re, reg_league_url)
 
-    #!TODO: This is returned as the string without any kind of treatment
-    #       If this array is used, each string will be needed to be
-    #       reshaped
-    #
-    #       i.e: 'Primera RFEF - Group 2' --> 'primera-rfef-group-2'
-    #
+        if match_reg_league:
+            reg_league_keyname = match_reg_league.group(1)
+            reg_league_name = rl.get_text(strip=True)
+            reg_leagues.update({reg_league_keyname: reg_league_name})
+
     return reg_leagues
 
 

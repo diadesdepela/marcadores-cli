@@ -99,11 +99,12 @@ def get_reg_league(sport: str, country: str) -> None:
     """
 
     # We obtain the list and start building the message
-    reg_league_list = spyglass.get_reg_leagues(sport, country)
-    reg_league_msg = f"Available regional {sport} leagues located in {country}\n"
+    reg_league_dict = spyglass.get_reg_leagues(sport, country)
+    reg_league_msg = f"Available regional {sport} leagues in {country}:\n"
 
-    for reg_league in reg_league_list:
-        reg_league_msg = reg_league_msg + f"\t{reg_league}\n"
+    for keyname_league, oficial_name_league in reg_league_dict.items():
+        reg_league_msg = reg_league_msg + (f"\t{keyname_league} - "
+                                           f"{oficial_name_league}\n")
 
     console.print(
         f"{reg_league_msg}"
