@@ -597,10 +597,9 @@ def get_news(section: str) -> list[containers.Article]:
         if isection['name'] == section:
             partial_section_url = isection['url']
 
-    # !TODO: Another case of error handling
     if partial_section_url is None:
-        print("Unknown section")
-        return -1
+        raise ValueError("Bad Argument Error - [SECTION]. "
+                         f"No section named {section} was found available")
 
     # Obtaining URL + Soup
     section_url = config.FS_URL + partial_section_url
