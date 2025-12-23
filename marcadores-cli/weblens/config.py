@@ -37,8 +37,12 @@ CLASS_TIME="event__time"
 CLASS_AWAY_TEAM_SCHEDULED="event__participant--away"
 CLASS_HOME_TEAM_SCHEDULED="event__participant--home"
 
+# IDENTIFIERS NEXT/PREV GAMES
+CLASS_LEAGUE="leagues--static"
+CLASS_LEAGUE_WRAPPER="headerLeague__wrapper"
+
 CLASS_LEAGUE_TAG="event--leagues"
-CLASS_HEADER_LEAGUE="headerLeague__title-text"
+CLASS_HEADER_LEAGUE="headerLeague__title"
 
 # IDENTIFIERS NEWS
 CLASS_NEWSSECTION = "fsNewsSection"

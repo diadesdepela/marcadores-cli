@@ -337,6 +337,7 @@ def get_team_id(sport: str, country: str, league: str, team: str) -> str:
     :return: ID of the given's keyname team
     :rtype: str
     """
+    team_id = None
     soup = get_league_raw_soup(sport, country, league)
 
     table = soup.find("div", id=config.ID_TABLE)
@@ -355,8 +356,10 @@ def get_team_id(sport: str, country: str, league: str, team: str) -> str:
         #
 
         if splitted_team_href[2] == team:
-            return splitted_team_href[3]
-    else:
+            team_id = splitted_team_href[3]
+            return team_id
+
+    if team_id is None:
         raise ValueError("Bad Argument Error - [TEAM]. "
                         f"No team {team} has been found")
 
@@ -421,8 +424,8 @@ def get_team_squad(sport: str, country: str, league: str,
     return squad
 
 
-# !TODO: Change how this internally works and use the "fixtures" subpage
-def get_team_next_games(sport: str, country: str, league: str, team: str):
+def get_team_next_games(sport: str, country: str,
+                        league: str, team: str) -> tuple[containers.Match]:
     """
     This get functionality allows you to check the games that are
     registered to occur to a certain team
@@ -435,50 +438,74 @@ def get_team_next_games(sport: str, country: str, league: str, team: str):
     :type league: str
     :param team: Desired team from which will be listed the next games
     :type team: str
+    :return: List of Matches
+    :rtype: tuple[containers.Match]
     """
-    next_games = [ ]
+    next_games = []
 
     # We need the id...
     team_id = get_team_id(sport, country, league, team)
+
     # To create the url
-    team_url = f"{config.FS_URL}/team/{team}/{team_id}"
+    fixtures_url = f"{config.FS_URL}/team/{team}/{team_id}/fixtures"
 
     # We extract the rederized HTML
-    soup = rendering.get_soup(team_url, f".{config.CLASS_SCHEDULED}")
+    soup = rendering.get_soup(fixtures_url, f".{config.CLASS_SCHEDULED}")
 
-    section_tags = soup.find_all(class_=config.ID_SECTION)
+    fixtures_table_tag = soup.find(class_=config.CLASS_LEAGUE)
 
-    # If we find the 'Scheduled' section...
-    for i, x in enumerate(section_tags):
-        if x.get_text() == config.SECTION_SCHEDULED:
-            scheduled_tag = section_tags[i]
+    league_name = None
+    league_url = None
 
-    if scheduled_tag == None:
-        print("No scheduled matches found")
-        return
+    for fixture_row in fixtures_table_tag.children:
+        class_row = fixture_row.get("class")
+        # In case it is a header of a league we obtain the current league
+        if config.CLASS_LEAGUE_WRAPPER in class_row:
+            cleague_tag = fixture_row.find(class_=config.CLASS_HEADER_LEAGUE)
+            league_name = cleague_tag.get("title")
+            league_url = cleague_tag.get("href")
+            league_keyname_re = rf"/{sport}/([^/]+)/([^/]+)/"
+            match = re.match(league_keyname_re, league_url)
+            region_keyname = match.group(1)
+            league_keyname = match.group(2)
+        # In case it is an event we fill the Match object, and add the league
+        # info that is curret
+        elif config.ID_MATCHROW in class_row:
+            time_tag = fixture_row.find(class_=config.CLASS_TIME)
+            time = time_tag.get_text()
+            local_team_tag = fixture_row.find(class_=config.ID_LOCALTEAM)
+            local_team = local_team_tag.get_text()
+            away_team_tag = fixture_row.find(class_=config.ID_AWAYTEAM)
+            away_team = away_team_tag.get_text()
 
-    scheduled_matches = scheduled_tag.next_sibling.find_all(
-                                            class_=config.CLASS_SCHEDULED)
+            current_match = containers.Match(time,
+                                             [None, local_team], None,
+                                             [None, away_team], None,
+                                             [league_keyname, league_name],
+                                             [None, region_keyname])
 
-    # ... we iterate through it, getting the time and teams
-    for scheduled_match in scheduled_matches:
-        match_time = scheduled_match.find(
-            class_=config.CLASS_TIME).get_text()
-
-        local_team = scheduled_match.find(
-            class_=config.CLASS_HOME_TEAM_SCHEDULED).get_text()
-
-        away_team = scheduled_match.find(
-            class_=config.CLASS_AWAY_TEAM_SCHEDULED).get_text()
-
-        next_games.append((match_time, (local_team, away_team)))
+            next_games.append(current_match)
 
     return next_games
 
-def get_team_prev_games(sport: str, country: str, league: str, team: str):
+
+# !TODO: Add the Match class to all the times it is used, for instance here
+def get_team_prev_games(sport: str, country: str,
+                        league: str, team: str) -> tuple[containers.Match]:
     """
-    Get functionality to obtain all the previous games of a certain
-    team.
+    This get functionality allows you to check the games that are
+    registered to have occured to a certain team
+
+    :param sport: Desired sport to analyze
+    :type sport: str
+    :param country: Desired country
+    :type country: str
+    :param league: Desired league
+    :type league: str
+    :param team: Desired team from which will be listed the previous games
+    :type team: str
+    :return: List of Matches
+    :rtype: tuple[containers.Match]
     """
     prev_games = []
 
@@ -492,63 +519,38 @@ def get_team_prev_games(sport: str, country: str, league: str, team: str):
     soup = rendering.get_soup(results_url,
                               f".{config.CLASS_LEAGUE_TAG}")
 
-    # print(soup)
-
     # This is the overall section
     league_event_section = soup.find(class_=config.CLASS_LEAGUE_TAG)
-
-    # There are league divs...
-    class_id_league = "headerLeague__wrapper"
-    # ... and event divs
-    class_id_event  = "event__match"
-    iterator_league = -1
 
     # For each div...
     for row in league_event_section.children:
         class_row = row.get("class")
 
         # We select if it's either league...
-        if class_id_league in class_row:
-            iterator_league = iterator_league + 1
-            league = row.find(class_=config.CLASS_HEADER_LEAGUE).get_text()
-            prev_games.append((league, []))
-
+        if config.CLASS_LEAGUE_WRAPPER in class_row:
+            cleague_tag = row.find(class_=config.CLASS_HEADER_LEAGUE)
+            league_name = cleague_tag.get("title")
+            league_url = cleague_tag.get("href")
+            league_keyname_re = rf"/{sport}/([^/]+)/([^/]+)/"
+            match = re.match(league_keyname_re, league_url)
+            region_keyname = match.group(1)
+            league_keyname = match.group(2)
         # Or event!
-        elif class_id_event in class_row:
-            home_team = row.find(class_=config.CLASS_HOME_TEAM_SCHEDULED).get_text()
+        elif config.ID_MATCHROW in class_row:
+            home_team = row.find(class_=config.ID_LOCALTEAM).get_text()
             home_score = row.find(class_=config.ID_LOCALSCORE).get_text()
-            away_team = row.find(class_=config.CLASS_AWAY_TEAM_SCHEDULED).get_text()
+            away_team = row.find(class_=config.ID_AWAYTEAM).get_text()
             away_score = row.find(class_=config.ID_AWAYSCORE).get_text()
             date = row.find(class_=config.CLASS_TIME).get_text()
 
-            event = (date, ((home_team, home_score),(away_team, away_score)))
+            current_match = containers.Match(date,
+                                             [None, home_team], home_score,
+                                             [None, away_team], away_score,
+                                             [league_keyname, league_name],
+                                             [None, region_keyname])
 
-            prev_games[iterator_league][1].append(event)
+            prev_games.append(current_match)
 
-    ###########---prev_games data-structure---##########################
-    #
-    # The structure of the divs are more or less like this:
-    #
-    #   [league]
-    #       |-----[event]~ (date, ((home_team, home_score), [event],...
-    #       |                     (away_team, away_score)))
-    #       ·
-    #       ·
-    #   [league]
-    #       |-----[event]~ (date, ((home_team, home_score), [event],...
-    #       |                     (away_team, away_score)))
-    #
-    #-------------------------------------------------------------------
-    #
-    # For example: Here you can iterate through the whole data structure
-    # for league, events in prev_games:
-    #     print(f"league: {league}")
-    #
-    #     for event in events:
-    #         print(f"date: {event[0]}")
-    #         print(f"home_team:{event[1][0][0]} home_score:{event[1][0][1]}")
-    #         print(f"away_team:{event[1][1][0]} away_score:{event[1][1][1]}")
-    #
 
     return prev_games
 

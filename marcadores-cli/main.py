@@ -200,38 +200,38 @@ def get_standings(sport: str, country: str, league: str)-> None:
 def get_team_games(sport: str, country: str, league: str, team: str,
                     time: str) -> None:
     """
-    Lists the past or following games of a team
+    CLI command to get printed the games of a desired team
+
+    :param sport: Team's sport
+    :type sport: str
+    :param country: Team's country of origin
+    :type country: str
+    :param league: Team's league in which it plays
+    :type league: str
+    :param team: Desired team
+    :type team: str
+    :param time: Whether you want next or last
+    :type time: str
     """
-    date_ = 0
-    teams_ = 1
-
-    local_team_ = 0
-    away_team_ = 1
-
-    team_name_ = 0
-    team_score = 1
-
     if time == "last":
-        team_league_games = spyglass.get_team_prev_games(sport, country,
+        team_prev_games = spyglass.get_team_prev_games(sport, country,
                                                             league, team)
         g_msg = f"Last games of {team}:\n"
 
-        for league_games in team_league_games:
-            g_msg = g_msg + f"\tLeague - {league_games[0]}\n"
-
-            for games in league_games[1]:
-                g_msg = g_msg + f"\t\t{games[date_]}- " \
-                                f"{games[teams_][local_team_][team_name_]}> " \
-                                f"{games[teams_][local_team_][team_score]} | "\
-                                f"{games[teams_][away_team_][team_score]} <"  \
-                                f"{games[teams_][away_team_][team_name_]}\n"
+        for game in team_prev_games:
+            g_msg = g_msg + f"\t{game.get_date()} - " \
+                          + f"{game.get_local_team_name()}: " \
+                          + f"{game.get_local_score()} - " \
+                          + f"{game.get_away_score()}" \
+                          + f" :{game.get_away_team_name()}\n"
     else:
-        team_games = spyglass.get_team_next_games(sport, country, league, team)
+        team_next_games = spyglass.get_team_next_games(sport, country, league, team)
         g_msg = f"Next games of {team} in {league}:\n"
 
-        for game in team_games:
-            g_msg = g_msg + f"\t{game[date_]}- {game[teams_][local_team_]}"\
-                                    f" vs. {game[teams_][away_team_]}\n"
+        for game in team_next_games:
+            g_msg = g_msg + f"\t{game.get_date()} - " \
+                          + f"{game.get_local_team_name()}" \
+                          + f" vs. {game.get_away_team_name()}\n"
 
     console.print(
         f"{g_msg}"
