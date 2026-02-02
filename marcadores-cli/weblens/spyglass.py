@@ -137,6 +137,9 @@ def get_reg_leagues(sport: str, country: str) -> dict:
     return reg_leagues
 
 
+# !TODO: Bug found. If for instance laliga has 22 rounds played. It wont
+#        load the 10th round. A further look should be taken here.
+#        Maybe it is not displaying everything.
 def get_results(sport: str, country: str, league: str, round: int = 0):
     """
     Get function to obtain the results of all the games in a
