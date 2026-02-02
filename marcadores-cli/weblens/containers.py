@@ -1,5 +1,47 @@
 from dataclasses import dataclass
 
+@dataclass
+class Match:
+    date: str
+    local_team: tuple[str, str]
+    local_score: int
+    away_team: tuple[str, str]
+    away_score: int
+    league: tuple[str, str]
+    region: tuple[str, str]
+
+    def get_date(self):
+        return self.date
+
+    def get_local_team_name(self):
+        return self.local_team[1]
+
+    def get_local_team_keyname(self):
+        return self.local_team[0]
+
+    def get_local_score(self):
+        return self.local_score
+
+    def get_away_team_name(self):
+        return self.away_team[1]
+
+    def get_away_team_keyname(self):
+        return self.away_team[0]
+
+    def get_away_score(self):
+        return self.away_score
+
+    def get_league_name(self):
+        return self.league[1]
+
+    def get_league_keyname(self):
+        return self.league[0]
+
+    def get_region_name(self):
+        return self.region[1]
+
+    def get_region_keyname(self):
+        return self.region[0]
 
 @dataclass
 class Player:

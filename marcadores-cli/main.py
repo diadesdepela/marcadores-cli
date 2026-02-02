@@ -7,6 +7,9 @@ from rich.panel import Panel
 from rich.text import Text
 from rich.table import Table
 
+
+# !TODO: I should divide this code part where all the commands are
+#        defined somewhere else, definetly
 console = Console()
 
 
@@ -15,18 +18,23 @@ def marcadorescli():
     """CLI Main Entry point"""
     pass
 
-
-@click.command("list-of-sports")
-def list_of_sports() -> None:
+@click.option("-e", "--expanded", help="Allows the command to show an " \
+                                  "expanded list of sports.", is_flag=True)
+@click.command("list_of_sports")
+def list_of_sports(expanded: bool = False) -> None:
     """
     List of sports available to show.
     """
-    sport_list = spyglass.get_sports_list()
+    main_sports, minority_sports = spyglass.get_sports_dicts()
 
     list_msg = f"List of sports\n"
 
-    for sport in sport_list:
-        list_msg = list_msg + f"   {sport}\n"
+    for url, sport in main_sports.items():
+        list_msg = list_msg + f"\t{sport} - {url}\n"
+
+    if expanded:
+        for url, sport in minority_sports.items():
+            list_msg = list_msg + f"\t{sport} - {url}\n"
 
     console.print(
             f"{list_msg}"
@@ -35,12 +43,16 @@ def list_of_sports() -> None:
     return None
 
 
-@click.command("get-leagues-countries")
+@click.command("get_leagues_countries")
 @click.argument("sport", required=True, nargs=1)
 @click.option("-l", "--letter", help="Pass a single character to filter out " \
                                      "the leagues shown based on the initial" \
                                      "letter", show_default=True)
-def get_leagues_countries(sport: str, letter: str | None = None) -> None:
+@click.option("-e", "--expanded", help="Allows the command to show an " \
+                                  "expanded list of countries/leagues.", \
+                                  is_flag=True)
+def get_leagues_countries(sport: str, letter: str | None = None,
+                          expanded: bool = False) -> None:
     """
     Lists the available countries or international leagues for a sport
     """
@@ -52,16 +64,24 @@ def get_leagues_countries(sport: str, letter: str | None = None) -> None:
         click.help_option()
 
     # We obtain the list and start building the message
-    league_list = spyglass.get_league_countries(sport)
+    countries_list, other_comps = spyglass.get_league_countries(sport)
+
+    # --expanded option flag
+    if expanded:
+        league_list = countries_list | other_comps
+    else:
+        league_list = countries_list
+
     league_msg = f"Available leagues & countries for {sport}\n"
 
+    # --letter / -l option...
     if letter is not None:
-        for league in league_list:
+        for url, league in league_list.items():
             if letter.lower() == league[0].lower():
-                    league_msg = league_msg + f"   {league}\n"
+                    league_msg = league_msg + f"   {league} - {url}\n"
     else:
-        for league in league_list:
-            league_msg = league_msg + f"   {league}\n"
+        for url, league in league_list.items():
+            league_msg = league_msg + f"   {league} - {url}\n"
 
     console.print(
         f"{league_msg}"
@@ -79,11 +99,12 @@ def get_reg_league(sport: str, country: str) -> None:
     """
 
     # We obtain the list and start building the message
-    reg_league_list = spyglass.get_reg_leagues(sport, country)
-    reg_league_msg = f"Available regional {sport} leagues located in {country}\n"
+    reg_league_dict = spyglass.get_reg_leagues(sport, country)
+    reg_league_msg = f"Available regional {sport} leagues in {country}:\n"
 
-    for reg_league in reg_league_list:
-        reg_league_msg = reg_league_msg + f"\t{reg_league}\n"
+    for keyname_league, oficial_name_league in reg_league_dict.items():
+        reg_league_msg = reg_league_msg + (f"\t{keyname_league} - "
+                                           f"{oficial_name_league}\n")
 
     console.print(
         f"{reg_league_msg}"
@@ -113,9 +134,6 @@ def get_results(sport: str, country: str, league: str,
     # We obtain the result list
     results = spyglass.get_results(sport, country, league, round)
 
-    # !TODO: Normalize the round number to the actual one. Probably
-    #        a "get_last_round_number" function or similar has to be
-    #        made
     reg_league_msg = f"Results of round {round} in {league}:\n"
 
     # [0] -> Always local/home
@@ -182,38 +200,38 @@ def get_standings(sport: str, country: str, league: str)-> None:
 def get_team_games(sport: str, country: str, league: str, team: str,
                     time: str) -> None:
     """
-    Lists the past or following games of a team
+    CLI command to get printed the games of a desired team
+
+    :param sport: Team's sport
+    :type sport: str
+    :param country: Team's country of origin
+    :type country: str
+    :param league: Team's league in which it plays
+    :type league: str
+    :param team: Desired team
+    :type team: str
+    :param time: Whether you want next or last
+    :type time: str
     """
-    date_ = 0
-    teams_ = 1
-
-    local_team_ = 0
-    away_team_ = 1
-
-    team_name_ = 0
-    team_score = 1
-
     if time == "last":
-        team_league_games = spyglass.get_team_prev_games(sport, country,
+        team_prev_games = spyglass.get_team_prev_games(sport, country,
                                                             league, team)
         g_msg = f"Last games of {team}:\n"
 
-        for league_games in team_league_games:
-            g_msg = g_msg + f"\tLeague - {league_games[0]}\n"
-
-            for games in league_games[1]:
-                g_msg = g_msg + f"\t\t{games[date_]}- " \
-                                f"{games[teams_][local_team_][team_name_]}> " \
-                                f"{games[teams_][local_team_][team_score]} | "\
-                                f"{games[teams_][away_team_][team_score]} <"  \
-                                f"{games[teams_][away_team_][team_name_]}\n"
+        for game in team_prev_games:
+            g_msg = g_msg + f"\t{game.get_date()} - " \
+                          + f"{game.get_local_team_name()}: " \
+                          + f"{game.get_local_score()} - " \
+                          + f"{game.get_away_score()}" \
+                          + f" :{game.get_away_team_name()}\n"
     else:
-        team_games = spyglass.get_team_next_games(sport, country, league, team)
+        team_next_games = spyglass.get_team_next_games(sport, country, league, team)
         g_msg = f"Next games of {team} in {league}:\n"
 
-        for game in team_games:
-            g_msg = g_msg + f"\t{game[date_]}- {game[teams_][local_team_]}"\
-                                    f" vs. {game[teams_][away_team_]}\n"
+        for game in team_next_games:
+            g_msg = g_msg + f"\t{game.get_date()} - " \
+                          + f"{game.get_local_team_name()}" \
+                          + f" vs. {game.get_away_team_name()}\n"
 
     console.print(
         f"{g_msg}"

@@ -7,8 +7,15 @@
 FS_URL="https://www.flashscore.com"
 
 ID_MAIN_SPORTS="menuTop__text"
+ID_MAIN_ITEMS="menuTop__item"
+ID_MINO_SPORTS="menuMinority__text"
+ID_MINO_ITEMS="menuMinority__item"
 ID_MAIN_COUNTRIES="left_menu_categories_seo"
 ID_MAIN_REG_LEAGUES="leftMenu__href"
+
+VAR_JAVAS_COUNTRIES="rawData"
+VAR_JSON_COUNTRIES="inputData"
+DICT_KEY_COUNTRIES="SCC"
 
 ID_ROUND="event__round"
 ID_MATCHROW="event__match"
@@ -30,8 +37,12 @@ CLASS_TIME="event__time"
 CLASS_AWAY_TEAM_SCHEDULED="event__participant--away"
 CLASS_HOME_TEAM_SCHEDULED="event__participant--home"
 
+# IDENTIFIERS NEXT/PREV GAMES
+CLASS_LEAGUE="leagues--static"
+CLASS_LEAGUE_WRAPPER="headerLeague__wrapper"
+
 CLASS_LEAGUE_TAG="event--leagues"
-CLASS_HEADER_LEAGUE="headerLeague__title-text"
+CLASS_HEADER_LEAGUE="headerLeague__title"
 
 # IDENTIFIERS NEWS
 CLASS_NEWSSECTION = "fsNewsSection"

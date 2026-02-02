@@ -13,81 +13,133 @@ from . import containers
 import re
 import json
 
-def get_sports_list() -> list[str]:
+def get_sports_dicts() -> tuple[dict, dict]:
     """
-    Looks for the available sports in the webpage, using the class
-    identifier from the HTML file
+    Get funcitonality that allows you to see the available sports in
+    the website
+
+    :return: The available sports. Dictionary. Key: url, value: name of
+    the sport
+    :rtype: dict
     """
-    sports = []
+    main_sports = {}
+    minority_sports = {}
 
     soup = rendering.get_soup(config.FS_URL)
 
     # Obtain all the main sports via the class identifier
-    main_sports_tag = soup.find_all(class_=config.ID_MAIN_SPORTS)
+    main_sports_tag = soup.find_all(class_=config.ID_MAIN_ITEMS)
+    minority_sports_tag = soup.find_all(class_=config.ID_MINO_ITEMS)
 
-    # Fill our list
-    for tag in main_sports_tag:
-        sports.append(tag.get_text(strip=True))
+    # Fill our main sport list
+    for main_tag in main_sports_tag:
+        main_sport_tag = main_tag.find(class_=config.ID_MAIN_SPORTS)
 
-    #!TODO: Add the secondary sports, create special case for
-    #       'Favourites'
+        if main_sport_tag:
+            sport_text = main_sport_tag.get_text(strip=True)
+            sport_href = main_tag.get("href")
 
-    return sports
+            main_sports.update({sport_href: sport_text})
+
+    # Fill our minority sport list
+    for mino_tag in minority_sports_tag:
+        mino_sport_tag = mino_tag.find(class_=config.ID_MINO_SPORTS)
+
+        if mino_sport_tag:
+            sport_text = mino_sport_tag.get_text(strip=True)
+            sport_href = mino_tag.get("href")
+
+            minority_sports.update({sport_href: sport_text})
+
+    return main_sports, minority_sports
 
 
-#!TODO: Bug detected in this functionality, does not work correctly
-#       ID from the find_all must be changed. Might be
-#       lmc__elementName or smth like that (?)
-def get_league_countries(sport: str) -> list[str]:
+def get_league_countries(sport: str) -> tuple[dict, dict]:
     """
-    Get function to see available countries and leagues within an sport
+    Docstring for get_league_countries
+
+    :param sport: Desired sport from where to obtain the different
+    countries availables
+    :type sport: str
+    :return: Tuple that contains the countries and the competitions
+    :rtype: tuple[dict, dict]
     """
-    countries = []
+    countries = {}
+    competitions = {}
 
     # Obtain page & soup
     sport_url = config.FS_URL + "/" + sport
-    #!TODO: Check whether the sport is correct or not. Investigate how
-    #       handle errors and expections
     soup = rendering.get_soup(sport_url)
 
-    # Obtain first div element of HTML
-    countries_tag = soup.find_all(class_=config.ID_MAIN_COUNTRIES)
+    script_tags = soup.find_all('script')
 
-    # Go through the div adding the different countries and leagues
-    for c in countries_tag[0].find_all(True):
-        countries.append(c.get_text(strip=True))
+    for tag in script_tags:
+        script_text = tag.get_text()
 
-    return countries
+        if (config.VAR_JSON_COUNTRIES in script_text and
+            config.VAR_JSON_COUNTRIES in script_text):
+            countries_tag = tag
+            break
+
+    # Regular expresion that follows the json inside the js variable
+    rawdata_re = r'rawData\s*:\s*(\[\{.*?\}\]\}\])'
+
+    match = re.search(rawdata_re, countries_tag.get_text(), flags=re.DOTALL)
+    raw_json = match.group(1)
+
+    raw_data = json.loads(raw_json)
+
+    # There are two main parts: 'countries' and 'other competitions'
+    for country in raw_data[0][config.DICT_KEY_COUNTRIES]:
+        countries.update({country["ML"]: country["MCN"]})
+
+    for competition in raw_data[1][config.DICT_KEY_COUNTRIES]:
+        competitions.update({competition["ML"]: competition["MCN"]})
+
+    return countries, competitions
 
 
-def get_reg_leagues(sport: str, country: str) -> list[str]:
+def get_reg_leagues(sport: str, country: str) -> dict:
     """
-    Get function to see available regional leagues within a country
+    Get functionality to obtain a dictionary of all the leagues
+
+    :param sport: Desired sport from where to obtain the leagues
+    :type sport: str
+    :param country: Desired country from where to obtain the leagues
+    :type country: str
+    :return: String dictionary of keyname_league, name_league
+    :rtype: dict
     """
-    reg_leagues = []
+    reg_leagues = {}
 
     # Obtain page & soup
     sport_country_url = config.FS_URL + "/" + sport + "/" + country
 
-    #!TODO: Same... before arguments shall be checked, and they
-    #       might shall not pass!
     soup = rendering.get_soup(sport_country_url)
 
     reg_leagues_tag = soup.find_all(class_=config.ID_MAIN_REG_LEAGUES)
+    reg_league_re = rf"/{sport}/{country}/([^/]+)/"
 
     # Go through the tag checking the different reg_leagues
     for rl in reg_leagues_tag:
-        reg_leagues.append(rl.get_text(strip=True))
+        reg_league_url = rl.get("href")
+        # The regular expression allows us to:
+        #   1. Filter that is indeed from "sport" and "country" given
+        #      as argument
+        #   2. Obtain the "keyname"
+        match_reg_league = re.match(reg_league_re, reg_league_url)
 
-    #!TODO: This is returned as the string without any kind of treatment
-    #       If this array is used, each string will be needed to be
-    #       reshaped
-    #
-    #       i.e: 'Primera RFEF - Group 2' --> 'primera-rfef-group-2'
-    #
+        if match_reg_league:
+            reg_league_keyname = match_reg_league.group(1)
+            reg_league_name = rl.get_text(strip=True)
+            reg_leagues.update({reg_league_keyname: reg_league_name})
+
     return reg_leagues
 
 
+# !TODO: Bug found. If for instance laliga has 22 rounds played. It wont
+#        load the 10th round. A further look should be taken here.
+#        Maybe it is not displaying everything.
 def get_results(sport: str, country: str, league: str, round: int = 0):
     """
     Get function to obtain the results of all the games in a
@@ -99,13 +151,22 @@ def get_results(sport: str, country: str, league: str, round: int = 0):
     results_url = f"{config.FS_URL}/{sport}/{country}/{league}/results/"
 
     soup = rendering.get_soup(results_url)
-    # !TODO: Investigate a method / functionality to know if the JS
-    #        has been loaded completely
 
     # Find all the games
     round_tag = soup.find_all(class_=config.ID_ROUND)
-    # !TODO: Correct if list index "round" is out of range and invert it
-    # so it fits
+
+    # We obtain the first round (last one that occurred)
+    last_round_text = round_tag[0].get_text()
+    round_re = r"^Round\s(\d+)$"
+    match = re.match(round_re, last_round_text)
+    last_round_n = int(match.group(1))
+
+    # We check whether it has happened or not
+    desired_round_n = last_round_n - round
+
+    if desired_round_n < 0:
+        raise ValueError("Bad Argument Error - [ROUND]. "
+                         f"Last round was {last_round_n}")
 
     # ------------------------------------------------------------------
     # Take the first match...
@@ -129,7 +190,7 @@ def get_results(sport: str, country: str, league: str, round: int = 0):
     #                                   // We stop!
     #
     # ------------------------------------------------------------------
-    cmatch = round_tag[round].find_next_sibling()
+    cmatch = round_tag[desired_round_n].find_next_sibling()
 
     while(cmatch.get("class")[0] == config.ID_MATCHROW):
         # We get local team and score
@@ -197,10 +258,6 @@ def get_standings(sport: str, country: str, league: str):
 
         points_tag = row.find(class_=config.CLASS_POINTSROW)
 
-        # !TODO: For instance in NBA there are no points. Just W / L
-        #        Here would be nice a good treatment of errors and
-        #        exceptions. "get_text()" pops up an error if it is
-        #        None
         if points_tag is not None:
             points = points_tag.get_text()
         else:
@@ -270,8 +327,20 @@ def get_team_keynames(sport: str, country: str, league: str):
 
 def get_team_id(sport: str, country: str, league: str, team: str) -> str:
     """
-    Get function to obtain a certain team's ID
+    Internal get functionality to obtain a certain team's id
+
+    :param sport: Given sport in which the team is
+    :type sport: str
+    :param country: Given country in which the team is
+    :type country: str
+    :param league: Given league in which the team is
+    :type league: str
+    :param team: Keyname of the team
+    :type team: str
+    :return: ID of the given's keyname team
+    :rtype: str
     """
+    team_id = None
     soup = get_league_raw_soup(sport, country, league)
 
     table = soup.find("div", id=config.ID_TABLE)
@@ -290,9 +359,13 @@ def get_team_id(sport: str, country: str, league: str, team: str) -> str:
         #
 
         if splitted_team_href[2] == team:
-            return splitted_team_href[3]
+            team_id = splitted_team_href[3]
+            return team_id
 
-    #!TODO: Add a corner case if team is not found
+    if team_id is None:
+        raise ValueError("Bad Argument Error - [TEAM]. "
+                        f"No team {team} has been found")
+
 
 def get_team_squad(sport: str, country: str, league: str,
                     team: str) -> list[containers.Player]:
@@ -354,52 +427,88 @@ def get_team_squad(sport: str, country: str, league: str,
     return squad
 
 
-# !TODO: Change how this internally works and use the "fixtures" subpage
-# !TODO: Add documentation
-def get_team_next_games(sport: str, country: str, league: str, team: str):
-    next_games = [ ]
+def get_team_next_games(sport: str, country: str,
+                        league: str, team: str) -> tuple[containers.Match]:
+    """
+    This get functionality allows you to check the games that are
+    registered to occur to a certain team
+
+    :param sport: Desired sport to analyze
+    :type sport: str
+    :param country: Desired country
+    :type country: str
+    :param league: Desired league
+    :type league: str
+    :param team: Desired team from which will be listed the next games
+    :type team: str
+    :return: List of Matches
+    :rtype: tuple[containers.Match]
+    """
+    next_games = []
 
     # We need the id...
     team_id = get_team_id(sport, country, league, team)
+
     # To create the url
-    team_url = f"{config.FS_URL}/team/{team}/{team_id}"
+    fixtures_url = f"{config.FS_URL}/team/{team}/{team_id}/fixtures"
 
     # We extract the rederized HTML
-    soup = rendering.get_soup(team_url, f".{config.CLASS_SCHEDULED}")
+    soup = rendering.get_soup(fixtures_url, f".{config.CLASS_SCHEDULED}")
 
-    section_tags = soup.find_all(class_=config.ID_SECTION)
+    fixtures_table_tag = soup.find(class_=config.CLASS_LEAGUE)
 
-    # If we find the 'Scheduled' section...
-    for i, x in enumerate(section_tags):
-        if x.get_text() == config.SECTION_SCHEDULED:
-            scheduled_tag = section_tags[i]
+    league_name = None
+    league_url = None
 
-    if scheduled_tag == None:
-        print("No scheduled matches found")
-        return
+    for fixture_row in fixtures_table_tag.children:
+        class_row = fixture_row.get("class")
+        # In case it is a header of a league we obtain the current league
+        if config.CLASS_LEAGUE_WRAPPER in class_row:
+            cleague_tag = fixture_row.find(class_=config.CLASS_HEADER_LEAGUE)
+            league_name = cleague_tag.get("title")
+            league_url = cleague_tag.get("href")
+            league_keyname_re = rf"/{sport}/([^/]+)/([^/]+)/"
+            match = re.match(league_keyname_re, league_url)
+            region_keyname = match.group(1)
+            league_keyname = match.group(2)
+        # In case it is an event we fill the Match object, and add the league
+        # info that is curret
+        elif config.ID_MATCHROW in class_row:
+            time_tag = fixture_row.find(class_=config.CLASS_TIME)
+            time = time_tag.get_text()
+            local_team_tag = fixture_row.find(class_=config.ID_LOCALTEAM)
+            local_team = local_team_tag.get_text()
+            away_team_tag = fixture_row.find(class_=config.ID_AWAYTEAM)
+            away_team = away_team_tag.get_text()
 
-    scheduled_matches = scheduled_tag.next_sibling.find_all(
-                                            class_=config.CLASS_SCHEDULED)
+            current_match = containers.Match(time,
+                                             [None, local_team], None,
+                                             [None, away_team], None,
+                                             [league_keyname, league_name],
+                                             [None, region_keyname])
 
-    # ... we iterate through it, getting the time and teams
-    for scheduled_match in scheduled_matches:
-        match_time = scheduled_match.find(
-            class_=config.CLASS_TIME).get_text()
-
-        local_team = scheduled_match.find(
-            class_=config.CLASS_HOME_TEAM_SCHEDULED).get_text()
-
-        away_team = scheduled_match.find(
-            class_=config.CLASS_AWAY_TEAM_SCHEDULED).get_text()
-
-        next_games.append((match_time, (local_team, away_team)))
+            next_games.append(current_match)
 
     return next_games
 
-def get_team_prev_games(sport: str, country: str, league: str, team: str):
+
+# !TODO: Add the Match class to all the times it is used, for instance here
+def get_team_prev_games(sport: str, country: str,
+                        league: str, team: str) -> tuple[containers.Match]:
     """
-    Get functionality to obtain all the previous games of a certain
-    team.
+    This get functionality allows you to check the games that are
+    registered to have occured to a certain team
+
+    :param sport: Desired sport to analyze
+    :type sport: str
+    :param country: Desired country
+    :type country: str
+    :param league: Desired league
+    :type league: str
+    :param team: Desired team from which will be listed the previous games
+    :type team: str
+    :return: List of Matches
+    :rtype: tuple[containers.Match]
     """
     prev_games = []
 
@@ -413,63 +522,38 @@ def get_team_prev_games(sport: str, country: str, league: str, team: str):
     soup = rendering.get_soup(results_url,
                               f".{config.CLASS_LEAGUE_TAG}")
 
-    # print(soup)
-
     # This is the overall section
     league_event_section = soup.find(class_=config.CLASS_LEAGUE_TAG)
-
-    # There are league divs...
-    class_id_league = "headerLeague__wrapper"
-    # ... and event divs
-    class_id_event  = "event__match"
-    iterator_league = -1
 
     # For each div...
     for row in league_event_section.children:
         class_row = row.get("class")
 
         # We select if it's either league...
-        if class_id_league in class_row:
-            iterator_league = iterator_league + 1
-            league = row.find(class_=config.CLASS_HEADER_LEAGUE).get_text()
-            prev_games.append((league, []))
-
+        if config.CLASS_LEAGUE_WRAPPER in class_row:
+            cleague_tag = row.find(class_=config.CLASS_HEADER_LEAGUE)
+            league_name = cleague_tag.get("title")
+            league_url = cleague_tag.get("href")
+            league_keyname_re = rf"/{sport}/([^/]+)/([^/]+)/"
+            match = re.match(league_keyname_re, league_url)
+            region_keyname = match.group(1)
+            league_keyname = match.group(2)
         # Or event!
-        elif class_id_event in class_row:
-            home_team = row.find(class_=config.CLASS_HOME_TEAM_SCHEDULED).get_text()
+        elif config.ID_MATCHROW in class_row:
+            home_team = row.find(class_=config.ID_LOCALTEAM).get_text()
             home_score = row.find(class_=config.ID_LOCALSCORE).get_text()
-            away_team = row.find(class_=config.CLASS_AWAY_TEAM_SCHEDULED).get_text()
+            away_team = row.find(class_=config.ID_AWAYTEAM).get_text()
             away_score = row.find(class_=config.ID_AWAYSCORE).get_text()
             date = row.find(class_=config.CLASS_TIME).get_text()
 
-            event = (date, ((home_team, home_score),(away_team, away_score)))
+            current_match = containers.Match(date,
+                                             [None, home_team], home_score,
+                                             [None, away_team], away_score,
+                                             [league_keyname, league_name],
+                                             [None, region_keyname])
 
-            prev_games[iterator_league][1].append(event)
+            prev_games.append(current_match)
 
-    ###########---prev_games data-structure---##########################
-    #
-    # The structure of the divs are more or less like this:
-    #
-    #   [league]
-    #       |-----[event]~ (date, ((home_team, home_score), [event],...
-    #       |                     (away_team, away_score)))
-    #       ·
-    #       ·
-    #   [league]
-    #       |-----[event]~ (date, ((home_team, home_score), [event],...
-    #       |                     (away_team, away_score)))
-    #
-    #-------------------------------------------------------------------
-    #
-    # For example: Here you can iterate through the whole data structure
-    # for league, events in prev_games:
-    #     print(f"league: {league}")
-    #
-    #     for event in events:
-    #         print(f"date: {event[0]}")
-    #         print(f"home_team:{event[1][0][0]} home_score:{event[1][0][1]}")
-    #         print(f"away_team:{event[1][1][0]} away_score:{event[1][1][1]}")
-    #
 
     return prev_games
 
@@ -543,10 +627,9 @@ def get_news(section: str) -> list[containers.Article]:
         if isection['name'] == section:
             partial_section_url = isection['url']
 
-    # !TODO: Another case of error handling
     if partial_section_url is None:
-        print("Unknown section")
-        return -1
+        raise ValueError("Bad Argument Error - [SECTION]. "
+                         f"No section named {section} was found available")
 
     # Obtaining URL + Soup
     section_url = config.FS_URL + partial_section_url
